@@ -45,3 +45,13 @@ jobs:
         - ls -la android/app/build/outputs/apk/MainNet/release/
         - if [ $(ls android/app/build/outputs/apk/MainNet/release/ | grep -c bixin-*) -eq 0 ]; then exit 1; fi
       after_success: true 
+
+deploy:
+  provider: releases
+  api_key: "c0eeba54a7c14699eca60c6aa247ec9fc396a0d8" 
+  file:
+    - "$PWD/android/app/build/outputs/apk/RegTest/release/bixin-4.0.0-0.apk"
+  skip_cleanup: true
+  overwrite: true
+  on:
+    branch: bixin_test
