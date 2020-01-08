@@ -53,9 +53,9 @@ jobs:
 deploy:
   provider: releases
   api_key:
-    secure: $deploy_key
+    secure: ysfbMMqf2qDlHdagqzdIOoeiNCcaJ/dw8DhSsFjhbyV7YXZjTkYh4b36iWmq7WHAgJRukdNrdGdktf/kksOlAo4MsX0sdGipOsRCheiHYQNgeH8BOdOrs7UwjXiqQL3/AkzfAHbjdvhUNHDZVtZsCh2Eay8etioiYdwutcqTzi7Rqq+tXaklWXsFLo23+FAU/bX39NDUmhUbehCR4xr76jNXpMYqOniYfylOikgq2zlR3gQ693zviNWTs9O3jEDnxYk9337rL69Xm0viBRJODqC7wX91orBAZ58+ZnGzoELSH+n2EFS8YgIg8hrWSoyZqa44N/92ypPzykVLLmCv353zo3MalE+tCmWVHTjG6LOfu4PldrAg+Y9rmW7ov/UDs3jM2gLiMR9tE0E6wOVsfDlUw9wxfmsUdR7JZSqOYW9y41G2uUqQR9mnuu7Wdn0lvfmvBe8o8byoPflsiPNM5AEyLkv3EcGxgu5C8/owgUW+DA4RxGGwPQxOl0AQGm5pBAbrAj4Q3mgT/HkMaokv05cACeXyz6rL7yYUU2BWKAKtBoIIHL1ICR9Ub6siblvkuJwM259PmHrDkRPI6Swg5nEqE6ZbAA9qPsHCGGKdtTSLUBVD4JZsNBRiiYaRHrkpCNXxU58POj1xLBm/F6L3l2WkU4g3ogIitjCx7hZCJmI=
   file:
-    - $PWD/"android/app/build/outputs/apk/RegTest/release/bixin-4.0.0-0.apk"
+    - "android/app/build/outputs/apk/RegTest/release/bixin-4.0.0-0.apk"
   skip_cleanup: true
   overwrite: true
   on:
