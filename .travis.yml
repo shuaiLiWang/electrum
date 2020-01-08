@@ -1,57 +1,62 @@
 dist: xenial
 language: python
 python:
-    - 3.6
+- 3.6
 git:
   depth: false
 addons:
   apt:
     sources:
-      - sourceline: 'ppa:tah83/secp256k1'
+    - sourceline: ppa:tah83/secp256k1
     packages:
-      - libsecp256k1-0
+    - libsecp256k1-0
 before_install:
-  - git tag
+- git tag
 install:
-  - pip install -r contrib/requirements/requirements-travis.txt
+- pip install -r contrib/requirements/requirements-travis.txt
 cache:
-  - pip: true
-  - directories:
-    - /tmp/electrum-build
+- pip: true
+- directories:
+  - "/tmp/electrum-build"
 script:
-    - tox
+- tox
 after_success:
-    - if [ "$TRAVIS_BRANCH" = "master" ]; then pip install requests && contrib/push_locale; fi
-    - coveralls
+- if [ "$TRAVIS_BRANCH" = "master" ]; then pip install requests && contrib/push_locale;
+  fi
+- coveralls
 jobs:
   include:
-    - name: "Flake8 linter tests"
-      language: python
-      install: pip install flake8
-      script: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    - if: branch = bixin_dev
-      name: "Native Android build"
-      services:
-        - docker
-      install:
-        - while sleep 60; do echo "=====[ $SECONDS seconds still running ]====="; done &
-        - sudo docker pull lightningcn/electrum_env:latest
-      script:
-        # Output something every minute or Travis kills the job
-        - while sleep 60; do echo "=====[ $SECONDS seconds still running ]====="; done &
-        - sudo docker run --rm -it --name electrum-android-native-builder-cont -v $PWD:/data --workdir=/data/android lightningcn/electrum_env:latest /bin/bash -c "cp ~/android/local.properties local.properties && /data/android/gradlew app:build"
-        # kill background sleep loop
-        - kill %1
-        - ls -la android/app/build/outputs/apk/MainNet/release/
-        - if [ $(ls android/app/build/outputs/apk/MainNet/release/ | grep -c bixin-*) -eq 0 ]; then exit 1; fi
-      after_success: true 
+  - name: Flake8 linter tests
+    language: python
+    install: pip install flake8
+    script: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+  - if: branch = bixin_dev
+    name: Native Android build
+    services:
+    - docker
+    install:
+    - while sleep 60; do echo "=====[ $SECONDS seconds still running ]====="; done
+      &
+    - sudo docker pull lightningcn/electrum_env:latest
+    script:
+    - while sleep 60; do echo "=====[ $SECONDS seconds still running ]====="; done
+      &
+    - sudo docker run --rm -it --name electrum-android-native-builder-cont -v $PWD:/data
+      --workdir=/data/android lightningcn/electrum_env:latest /bin/bash -c "cp ~/android/local.properties
+      local.properties && /data/android/gradlew app:build"
+    - kill %1
+    - ls -la android/app/build/outputs/apk/MainNet/release/
+    - if [ $(ls android/app/build/outputs/apk/MainNet/release/ | grep -c bixin-*)
+      -eq 0 ]; then exit 1; fi
+    after_success: true
 
 deploy:
   provider: releases
-  api_key: "c0eeba54a7c14699eca60c6aa247ec9fc396a0d8" 
+  api_key:
+    secure: $deploy_key
   file:
-    - "$PWD/android/app/build/outputs/apk/RegTest/release/bixin-4.0.0-0.apk"
+    - $PWD/"android/app/build/outputs/apk/RegTest/release/bixin-4.0.0-0.apk"
   skip_cleanup: true
   overwrite: true
   on:
-    branch: bixin_test
+    branch: bixin_test 
