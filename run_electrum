@@ -344,6 +344,7 @@ if __name__ == '__main__':
     config = SimpleConfig(config_options)
 
     constants.set_testnet()
+    #constants.set_regtest()
     if config.get('testnet'):
         constants.set_testnet()
     elif config.get('regtest'):

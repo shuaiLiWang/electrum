@@ -19,7 +19,7 @@ from electrum.plugins.trezor.clientbase import TrezorClientBase
 from electrum.transaction import PartialTransaction, Transaction, TxOutput, PartialTxOutput, tx_from_any, TxInput, \
     PartialTxInput
 from electrum import commands, daemon, keystore, simple_config, storage, util, bitcoin
-from electrum.util import bh2u, bfh, Fiat, create_and_start_event_loop, decimal_point_to_base_unit_name
+from electrum.util import bh2u, bfh, Fiat, create_and_start_event_loop, decimal_point_to_base_unit_name, PR_PAID, PR_FAILED
 from electrum.invoices import PR_DEFAULT_EXPIRATION_WHEN_CREATING
 from electrum import MutiBase
 from electrum.i18n import _
@@ -1484,19 +1484,18 @@ class AndroidCommands(commands.Commands):
             print("")
             #self.callbackIntent.onCallback("update_signal_channel", '%s:%s:%s:%s' %(self.wallet, args[1].channel_id, can_send, can_receive))
 
-    def do_invoice_status(self, key):
-        print(f"do_invoice_status.....{key}")
+    def do_invoice_status(self, key, status):
+        print(f"do_invoice_status.....")
         req = self.wallet.get_invoice(key)
-        print(f"do_invoice_status req.....{req}")
         if req is None:
             return
-        # if status == PR_PAID:
-        #     print('Payment succeeded')
-        # elif status == PR_FAILED:
-        #     print('Payment failed')
-        # else:
-        #print(f'status......{status}')
-            #pass
+        if status == PR_PAID:
+            print('Payment succeeded')
+        elif status == PR_FAILED:
+            print('Payment failed')
+        else:
+            print(f'status......{status}')
+            pass
         # if self.callbackIntent is not None:
         #     print("")
            # self.callbackIntent.onCallback("invoice_status", "%s:%s" %(key, req))
@@ -1529,7 +1528,7 @@ class AndroidCommands(commands.Commands):
         if not invoice:
             raise BaseException("invoice is None")
         self.wallet.save_invoice(invoice)
-        result = self.wallet.lnworker.pay(invoice.invoice, amount_msat=invoice.get_amount_msat(), attempts=10)
+        result = self.wallet.lnworker.pay(invoice, amount_msat=invoice.get_amount_msat(), attempts=10)
 
 
 ############

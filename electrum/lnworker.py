@@ -902,6 +902,7 @@ class LNWallet(LNWorker):
         if success:
             util.trigger_callback('payment_succeeded', self.wallet, key)
         else:
+            print(f"payment_failed....{self.wallet, key, reason}")
             util.trigger_callback('payment_failed', self.wallet, key, reason)
         return success, log
 
@@ -1127,7 +1128,7 @@ class LNWallet(LNWorker):
         coro = self._add_request_coro(amount_sat, message, expiry)
         fut = asyncio.run_coroutine_threadsafe(coro, self.network.asyncio_loop)
         try:
-            return fut.result(timeout=5)
+            return fut.result(timeout=20)
         except concurrent.futures.TimeoutError:
             raise Exception(_("add invoice timed out"))
 

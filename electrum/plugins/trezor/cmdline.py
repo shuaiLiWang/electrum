@@ -3,7 +3,7 @@ from electrum.i18n import _
 from electrum.util import print_stderr
 from .trezor import TrezorPlugin, PASSPHRASE_ON_DEVICE
 from ..hw_wallet import CmdLineHandler
-from trezorlib.customer_ui import CustomerUI
+#from trezorlib.customer_ui import CustomerUI
 
 class TrezorCmdLineHandler(CmdLineHandler):
     def __init__(self):
@@ -19,7 +19,8 @@ class TrezorCmdLineHandler(CmdLineHandler):
             return getpass.getpass('')
 
 class Plugin(TrezorPlugin):
-    handler = CustomerUI()
+    handler = CmdLineHandler()
+    #handler = CustomerUI()
     @hook
     def init_keystore(self, keystore):
         if not isinstance(keystore, self.keystore_class):

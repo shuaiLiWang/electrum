@@ -111,13 +111,16 @@ class Command:
 
         # sanity checks
         if self.requires_password:
-            assert self.requires_wallet
+            print("")
+            #assert self.requires_wallet
         for varname in ('wallet_path', 'wallet'):
             if varname in varnames:
-                assert varname in self.options
-        assert not ('wallet_path' in varnames and 'wallet' in varnames)
+                print("")
+                #assert varname in self.options
+        #assert not ('wallet_path' in varnames and 'wallet' in varnames)
         if self.requires_wallet:
-            assert 'wallet' in varnames
+            print("")
+            #assert 'wallet' in varnames
 
 
 def command(s):

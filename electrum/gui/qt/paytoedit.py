@@ -160,7 +160,7 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit, Logger):
             except:
                 pass
             if self.payto_scriptpubkey:
-                self.win.set_onchain(True)
+                self.win.set_onchain(False)
                 self.win.lock_amount(False)
                 return
 

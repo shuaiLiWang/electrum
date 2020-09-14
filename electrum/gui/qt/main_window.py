@@ -1858,7 +1858,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.message_e.setText(description)
         if lnaddr.get_amount_sat() is not None:
             self.amount_e.setAmount(lnaddr.get_amount_sat())
-        #self.amount_e.textEdited.emit("")
+        self.amount_e.textEdited.emit("")
         self.set_onchain(False)
 
     def set_onchain(self, b):
