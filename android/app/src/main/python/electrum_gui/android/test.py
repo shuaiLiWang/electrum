@@ -157,7 +157,7 @@ testcommond.delete_wallet(name)
 # ret = testcommond.is_seed("rocket omit review divert bomb brief mushroom family fatal limb goose lion")
 # ret1 = testcommond.is_seed("wls")
 #testcommond.create(name, password, seed='rocket omit review divert bomb brief mushroom family fatal limb goose lion')
-testcommond.create(name, password, seed='pool friend inherit unhappy quote dwarf drill suit coil advance cage debate')
+#testcommond.create(name, password, seed='pool friend inherit unhappy quote dwarf drill suit coil advance cage debate')
 #ret = testcommond.is_valiad_xpub("Vpub5gLTnhnQig7SLNhWCqE2AHqt8zhJGQwuwEAKQE67bndddSzUMAmab7DxZF9b9wynVyY2URM61SWY67QYaPV6oQrB41vMKQbeHveRvuThAmm")
 #print("=======ret1 = %s" %ret)
 # ret = testcommond.is_valiad_xpub("Vpub5gLTnhnQig7SLNhWCqE2AHqt8zhJGQwuwEAKQE67bndddSzUMAmab7DxZF9b9wynVyY2URM61SWY67QYaPV6oQrB41v1111111111111111")
@@ -328,7 +328,7 @@ elif flag:
     message = 'test111'
     print("--------------all_output= %s" %output_str)
     feerate = testcommond.get_default_fee_status()
-    ret_str = testcommond.get_fee_by_feerate(output_str, message, 2)
+    ret_str = testcommond.get_fee_by_feerate(output_str, message, 20)
     ret_list = json.loads(ret_str)
     print("get_fee_by_feerate================%s" % ret_list)
 

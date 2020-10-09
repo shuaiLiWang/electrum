@@ -22,8 +22,7 @@ from electrum.util import Fiat, create_and_start_event_loop, decimal_point_to_ba
 from electrum import MutiBase
 from electrum.i18n import _
 from electrum.storage import WalletStorage
-from electrum.wallet import (Standard_Wallet,
-                             Wallet)
+from electrum.wallet import (Standard_Wallet, Wallet, Imported_Wallet)
 from electrum.bitcoin import is_address, hash_160, COIN, TYPE_ADDRESS
 from electrum.interface import ServerAddr
 from electrum import mnemonic
@@ -506,12 +505,12 @@ class AndroidCommands(commands.Commands):
             raise BaseException(e)
         return self.wizard.get_cosigner_num()
 
-    def create_multi_wallet(self, name, hide_type=False):
+    def create_multi_wallet(self, name, hd=None, hide_type=False):
         try:
             self._assert_daemon_running()
             self._assert_wizard_isvalid()
             path = self._wallet_path(name)
-            wallet_type = "%s-%s" % (self.m, self.n)
+            wallet_type = "btc-hw-%s-%s" % (self.m, self.n) if hd is None else "btc-hd-hw-%s-%s" % (self.m, self.n)
             keystores = self.get_keystores_info()
             print(f"keystores---------------{keystores}")
             if not hide_type:
@@ -527,6 +526,7 @@ class AndroidCommands(commands.Commands):
             raise BaseException(e)
         if storage:
             wallet = Wallet(db, storage, config=self.config)
+            wallet.status_flag = ("btc-hw-%s-%s" % (self.m, self.n))
             wallet.hide_type = hide_type
             wallet.start_network(self.daemon.network)
             self.daemon.add_wallet(wallet)
@@ -591,7 +591,7 @@ class AndroidCommands(commands.Commands):
                 create_failed_into[name] = str(e)
         return json.dumps(create_failed_into)
 
-    def import_create_hw_wallet(self, name, m, n, xpubs, hide_type=False):
+    def import_create_hw_wallet(self, name, m, n, xpubs, hide_type=False, hd = None):
         try:
             print(f"xpubs=========={m, n, xpubs}")
             self.set_multi_wallet_info(name, m, n)
@@ -601,7 +601,7 @@ class AndroidCommands(commands.Commands):
                     self.add_xpub(xpub_info[0], xpub_info[1])
                 else:
                     self.add_xpub(xpub_info)
-            self.create_multi_wallet(name, hide_type=hide_type)
+            self.create_multi_wallet(name, hd, hide_type=hide_type)
         except BaseException as e:
             raise e
 
@@ -622,7 +622,7 @@ class AndroidCommands(commands.Commands):
     # #create tx#########################
     def get_default_fee_status(self):
         try:
-            x = 2
+            x = 1
             self.config.set_key('mempool_fees', x == 2)
             self.config.set_key('dynamic_fees', x > 0)
             return self.config.get_fee_status()
@@ -692,9 +692,17 @@ class AndroidCommands(commands.Commands):
             tx_details = self.wallet.get_tx_info(tx)
             print("tx_details 1111111 = %s" % json.dumps(tx_details))
 
+            dyn = self.config.is_dynfee()
+            mempool = self.config.use_mempool_fees()
+            pos = self.config.get_depth_level() if mempool else self.config.get_fee_level()
+            fee_rate = feerate*1000 if feerate is None else self.config.fee_per_kb()
+            target, tooltip = self.config.get_fee_text(pos, dyn, mempool, fee_rate)
+            block = target.split()[-2]
             ret_data = {
                 'amount': tx_details.amount,
+                'size': size,
                 'fee': tx_details.fee,
+                'time': 7 if target.split()[-2] == 'next' else int(target.split()[-2]) * 7,
                 'tx': str(self.tx)
             }
             return json.dumps(ret_data)
@@ -1546,6 +1554,17 @@ class AndroidCommands(commands.Commands):
 
     ####################################################
     ## app wallet
+    def export_seed(self, password):
+        if not self.wallet.has_seed():
+            raise BaseException('This wallet has no seed')
+        keystore = self.wallet.get_keystore()
+        try:
+            seed = keystore.get_seed(password)
+            passphrase = keystore.get_passphrase(password)
+            return seed + passphrase
+        except BaseException as e:
+            raise e
+
     def check_seed(self, check_seed, password):
         try:
             self._assert_wallet_isvalid()
@@ -1604,8 +1623,22 @@ class AndroidCommands(commands.Commands):
         print(f"out==addr = {out}")
         return json.dumps(out)
 
+    def create_hd_wallet(self, password, seed=None, passphrase="", bip39_derivation=None):
+        ###create BTC-1
+        self.create("BTC-1", password, seed, passphrase, bip39_derivation, hd=True)
+
+        ###create ETH-1
+        self.create_eth("ETH-1", password, seed, passphrase, hd=True)
+
+    def create_eth(self, name, password, seed=None, passphrase="", hd=False):
+        print("TODO")
+
+    def is_watch_only(self):
+        self._assert_wallet_isvalid()
+        return self.wallet.is_watching_only()
+
     def create(self, name, password, seed_type="segwit", seed=None, passphrase="", bip39_derivation=None,
-               master=None, addresses=None, privkeys=None):
+               master=None, addresses=None, privkeys=None, hd=False):
         """Create or restore a new wallet"""
         print("CREATE in....name = %s" % name)
         new_seed = ""
@@ -1615,11 +1648,20 @@ class AndroidCommands(commands.Commands):
         storage = WalletStorage(path)
         db = WalletDB('', manual_upgrades=False)
         if addresses is not None:
-            print("")
-        # wallet = ImportedAddressWallet.from_text(storage, addresses)
-        elif privkeys is not None:
-            print("")
-            # wallet = ImportedPrivkeyWallet.from_text(storage, privkeys)
+            if addresses is not None and keystore.is_address_list(addresses):
+                wallet = Imported_Wallet(storage, config=self.config)
+                addresses = addresses.split()
+                good_inputs, bad_inputs = wallet.import_addresses(addresses, write_to_disk=False)
+                if not good_inputs:
+                    raise Exception("None of the given addresses can be imported")
+        elif privkeys is not None and keystore.is_private_key_list(privkeys, allow_spaces_inside_key=False):
+            k = keystore.Imported_KeyStore({})
+            storage.put('keystore', k.dump())
+            wallet = Imported_Wallet(storage, config=self.config)
+            keys = keystore.get_private_keys(privkeys, allow_spaces_inside_key=False)
+            good_inputs, bad_inputs = wallet.import_private_keys(keys, None, write_to_disk=False)
+            if not good_inputs:
+                raise Exception("None of the given privkeys can be imported")
         else:
             if bip39_derivation is not None:
                 ks = keystore.from_bip39_seed(seed, passphrase, bip39_derivation)
@@ -1632,14 +1674,16 @@ class AndroidCommands(commands.Commands):
                     print("Your wallet generation seed is:\n\"%s\"" % seed)
                     print("seed type = %s" % type(seed))
                 ks = keystore.from_seed(seed, passphrase, False)
-        db.put('keystore', ks.dump())
-        wallet = Standard_Wallet(db, storage, config=self.config)
+            db.put('keystore', ks.dump())
+            wallet = Standard_Wallet(db, storage, config=self.config)
+        if hd and seed is not None:
+            wallet.status_flag = "hd"
         wallet.update_password(old_pw=None, new_pw=password, encrypt_storage=False)
         wallet.start_network(self.daemon.network)
         wallet.save_db()
         self.daemon.add_wallet(wallet)
         wallet_info = {}
-        wallet_info['type'] = 'standard'
+        wallet_info['type'] = 'btc-hd-standard' if hd and seed is not None else "btc-standard"
         wallet_info['time'] = time.time()
         wallet_info['xpubs'] = []
         wallet_info['seed'] = seed
@@ -1971,6 +2015,9 @@ class AndroidCommands(commands.Commands):
         try:
             self.delete_wallet_from_deamon(self._wallet_path(name))
             if self.local_wallet_info.__contains__(name):
+                wallet_type = self.local_wallet_info.get(name).type
+                if wallet_type == "btc-hd-standard" or -1 != wallet_type.find("btc-hd-hw"):
+                    raise BaseException("HD wallet not be delete")
                 self.local_wallet_info.pop(name)
                 self.config.set_key('all_wallet_type_info', self.local_wallet_info)
             # os.remove(self._wallet_path(name))

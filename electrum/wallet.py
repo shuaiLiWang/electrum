@@ -252,7 +252,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
     def __init__(self, db: WalletDB, storage: Optional[WalletStorage], *, config: SimpleConfig):
         if not db.is_ready_to_be_used_by_wallet():
             raise Exception("storage not ready to be used by Abstract_Wallet")
-
+        self.status_flag = None
         self.config = config
         assert self.config is not None, "config must not be None"
         self.db = db
@@ -279,6 +279,9 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         # save wallet type the first time
         if self.db.get('wallet_type') is None:
             self.db.put('wallet_type', self.wallet_type)
+        if self.db.get('status_flag') is None:
+            self.db.put('status_flag', self.status_flag)
+
         self.contacts = Contacts(self.db)
         self._coin_price_cache = {}
         # lightning
@@ -2595,6 +2598,8 @@ class Standard_Wallet(Simple_Deterministic_Wallet):
         pubkey = pubkeys[0]
         return bitcoin.pubkey_to_address(self.txin_type, pubkey)
 
+class Standard_HD_Wallet(Simple_Deterministic_Wallet):
+    wallet_type = 'hd_standard'
 
 class Multisig_Wallet(Deterministic_Wallet):
     # generic m of n
