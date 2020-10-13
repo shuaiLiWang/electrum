@@ -79,7 +79,6 @@ from .logging import get_logger
 from .lnworker import LNWallet, LNBackups
 from .paymentrequest import PaymentRequest
 from .util import read_json_file, write_json_file, UserFacingException
-
 if TYPE_CHECKING:
     from .network import Network
 
@@ -249,7 +248,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
     def __init__(self, db: WalletDB, storage: Optional[WalletStorage], *, config: SimpleConfig):
         if not db.is_ready_to_be_used_by_wallet():
             raise Exception("storage not ready to be used by Abstract_Wallet")
-
+        self.status_flag = None
         self.config = config
         assert self.config is not None, "config must not be None"
         self.db = db
@@ -276,6 +275,9 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         # save wallet type the first time
         if self.db.get('wallet_type') is None:
             self.db.put('wallet_type', self.wallet_type)
+        if self.db.get('status_flag') is None:
+            self.db.put('status_flag', self.status_flag)
+
         self.contacts = Contacts(self.db)
         self._coin_price_cache = {}
         # lightning
@@ -2580,8 +2582,8 @@ class Simple_Deterministic_Wallet(Simple_Wallet, Deterministic_Wallet):
     def get_master_public_key(self):
         return self.keystore.get_master_public_key()
 
-    def derive_pubkeys(self, c, i):
-        return [self.keystore.derive_pubkey(c, i).hex()]
+    def derive_pubkeys(self, c, i, compressed=None):
+        return [self.keystore.derive_pubkey(c, i, compressed).hex()]
 
 
 class Standard_Wallet(Simple_Deterministic_Wallet):
@@ -2590,7 +2592,6 @@ class Standard_Wallet(Simple_Deterministic_Wallet):
     def pubkeys_to_address(self, pubkeys):
         pubkey = pubkeys[0]
         return bitcoin.pubkey_to_address(self.txin_type, pubkey)
-
 
 class Multisig_Wallet(Deterministic_Wallet):
     # generic m of n
