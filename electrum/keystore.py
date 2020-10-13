@@ -45,6 +45,7 @@ from .util import (InvalidPassword, WalletFileException,
 from .mnemonic import Mnemonic, Wordlist, seed_type, is_seed
 from .plugin import run_hook
 from .logging import Logger
+from eth_account import Account
 
 if TYPE_CHECKING:
     from .gui.qt.util import TaskThread
@@ -480,7 +481,7 @@ class Xpub(MasterPublicKeyMixin):
         self.is_requesting_to_be_rewritten_to_wallet_file = True
 
     @lru_cache(maxsize=None)
-    def derive_pubkey(self, for_change: int, n: int) -> bytes:
+    def derive_pubkey(self, for_change: int, n: int, compressed=None) -> bytes:
         for_change = int(for_change)
         assert for_change in (0, 1)
         xpub = self.xpub_change if for_change else self.xpub_receive
@@ -491,12 +492,12 @@ class Xpub(MasterPublicKeyMixin):
                 self.xpub_change = xpub
             else:
                 self.xpub_receive = xpub
-        return self.get_pubkey_from_xpub(xpub, (n,))
+        return self.get_pubkey_from_xpub(xpub, (n,), compressed)
 
     @classmethod
-    def get_pubkey_from_xpub(self, xpub: str, sequence) -> bytes:
+    def get_pubkey_from_xpub(self, xpub: str, sequence, compressed=None) -> bytes:
         node = BIP32Node.from_xkey(xpub).subkey_at_public_derivation(sequence)
-        return node.eckey.get_public_key_bytes(compressed=True)
+        return node.eckey.get_public_key_bytes(compressed)
 
 
 class BIP32_KeyStore(Xpub, Deterministic_KeyStore):
@@ -846,6 +847,17 @@ def bip39_is_checksum_valid(mnemonic: str) -> Tuple[bool, bool]:
     return checksum == calculated_checksum, True
 
 
+def from_eth_bip39_seed(seed, passphrase, derivation, xtype=None, create=False):
+    k = BIP32_KeyStore({})
+    if create:
+        k.add_seed(seed)
+        k.passphrase = passphrase
+    bip32_seed = bip39_to_seed(seed, passphrase)
+    if xtype is None:
+        xtype = xtype_from_derivation(derivation)
+    k.add_xprv_from_seed(bip32_seed, xtype, derivation)
+    return k, bip32_seed
+
 def from_bip39_seed(seed, passphrase, derivation, xtype=None):
     k = BIP32_KeyStore({})
     bip32_seed = bip39_to_seed(seed, passphrase)
@@ -975,7 +987,6 @@ def purpose48_derivation(account_id: int, xtype: str) -> str:
         raise Exception('unknown xtype: {}'.format(xtype))
     der = "m/%d'/%d'/%d'/%d'" % (bip43_purpose, coin, account_id, script_type_int)
     return normalize_bip32_derivation(der)
-
 
 def from_seed(seed, passphrase, is_p2sh=False):
     t = seed_type(seed)

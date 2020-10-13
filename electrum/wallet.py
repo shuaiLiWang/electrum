@@ -79,10 +79,14 @@ from .logging import get_logger
 from .lnworker import LNWallet, LNBackups
 from .paymentrequest import PaymentRequest
 from .util import read_json_file, write_json_file, UserFacingException
-
+from eth_utils import keccak
+from eth_account import Account
+from eth_utils.address import to_checksum_address
+from eth_keys.utils.address import public_key_bytes_to_address
 if TYPE_CHECKING:
     from .network import Network
-
+from .pywalib import PyWalib, ERC20NotExistsException
+from .eth_contract import Eth_Contract
 
 _logger = get_logger(__name__)
 
@@ -2583,12 +2587,8 @@ class Simple_Deterministic_Wallet(Simple_Wallet, Deterministic_Wallet):
     def get_master_public_key(self):
         return self.keystore.get_master_public_key()
 
-    def derive_pubkeys(self, c, i):
-        return [self.keystore.derive_pubkey(c, i).hex()]
-
-
-
-
+    def derive_pubkeys(self, c, i, compressed=None):
+        return [self.keystore.derive_pubkey(c, i, compressed).hex()]
 
 
 class Standard_Wallet(Simple_Deterministic_Wallet):
@@ -2597,9 +2597,6 @@ class Standard_Wallet(Simple_Deterministic_Wallet):
     def pubkeys_to_address(self, pubkeys):
         pubkey = pubkeys[0]
         return bitcoin.pubkey_to_address(self.txin_type, pubkey)
-
-class Standard_HD_Wallet(Simple_Deterministic_Wallet):
-    wallet_type = 'hd_standard'
 
 class Multisig_Wallet(Deterministic_Wallet):
     # generic m of n

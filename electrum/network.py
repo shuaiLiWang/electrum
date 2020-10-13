@@ -265,7 +265,7 @@ class Network(Logger, NetworkRetryManager[ServerAddr]):
         )
 
         self.asyncio_loop = asyncio.get_event_loop()
-        assert self.asyncio_loop.is_running(), "event loop not running"
+       # assert self.asyncio_loop.is_running(), "event loop not running"
         self._loop_thread = None  # type: threading.Thread  # set by caller; only used for sanity checks
 
         assert isinstance(config, SimpleConfig), f"config should be a SimpleConfig instead of {type(config)}"

@@ -22,15 +22,18 @@ from electrum.util import Fiat, create_and_start_event_loop, decimal_point_to_ba
 from electrum import MutiBase
 from electrum.i18n import _
 from electrum.storage import WalletStorage
-from electrum.wallet import (Standard_Wallet, Wallet, Imported_Wallet)
+from electrum.eth_wallet import (Imported_Eth_Wallet, Standard_Eth_Wallet, Eth_Wallet)
+from electrum.wallet import (Imported_Wallet, Standard_Wallet, Wallet)
 from electrum.bitcoin import is_address, hash_160, COIN, TYPE_ADDRESS
 from electrum.interface import ServerAddr
 from electrum import mnemonic
+from mnemonic import Mnemonic
 from electrum.address_synchronizer import TX_HEIGHT_LOCAL, TX_HEIGHT_FUTURE
 from electrum.bip32 import BIP32Node, convert_bip32_path_to_list_of_uint32 as parse_path
 from electrum.network import Network, TxBroadcastError, BestEffortRequestFailed
 from electrum import ecc
-from trezorlib.customer_ui import CustomerUI
+from electrum.pywalib import InvalidPasswordException
+#from trezorlib.customer_ui import CustomerUI
 from trezorlib import (
     btc,
     exceptions,
@@ -42,8 +45,9 @@ from trezorlib import (
 from trezorlib.cli import trezorctl
 from electrum.wallet_db import WalletDB
 from enum import Enum
-from .firmware_sign_nordic_dfu import parse
+#from .firmware_sign_nordic_dfu import parse
 from electrum import constants
+from eth_keys import keys
 
 class Status(Enum):
     net = 1
@@ -214,7 +218,8 @@ class AndroidCommands(commands.Commands):
     #     self.update_history()
 
     def on_quotes(self, d):
-        self.update_status()
+        if self.wallet.wallet_type == "stadard":
+            self.update_status()
         # self.update_history()
 
     def on_history(self, d):
@@ -259,11 +264,7 @@ class AndroidCommands(commands.Commands):
                 if self.daemon.fx.is_enabled():
                     text += self.daemon.fx.get_fiat_status_text(c + u + x, self.base_unit, self.decimal_point) or ''
            # print("update_statue out = %s" % (out))
-        # if (out != self.pre_balance_info) or (self.pre_wallet == self.wallet):
-        #     if self.pre_wallet == self.wallet:
-        #         self.pre_wallet = None
-        #     self.pre_balance_info = out
-            self.callbackIntent.onCallback("update_status", json.dumps(out))
+            #self.callbackIntent.onCallback("update_status", json.dumps(out))
 
     def get_remove_flag(self, tx_hash):
         height = self.wallet.get_tx_height(tx_hash).height
@@ -326,30 +327,33 @@ class AndroidCommands(commands.Commands):
     # self.callbackIntent.onCallback("update_history")
 
     def on_network_event(self, event, *args):
-        if event == 'network_updated':
-            self.update_interfaces()
-            self.update_status()
-        elif event == 'wallet_updated':
-            self.update_status()
-            self.update_wallet()
-        elif event == 'blockchain_updated':
-            # to update number of confirmations in history
-            self.update_wallet()
-        elif event == 'status':
-            self.update_status()
-        elif event == 'new_transaction':
-            self.update_wallet()
-        elif event == 'verified':
-            self.update_wallet()
-        elif event == 'set_server_status':
-            if self.callbackIntent is not None:
-                self.callbackIntent.onCallback("set_server_status", args[0])
+        if self.wallet.wallet_type == "standard":
+            if event == 'network_updated':
+                self.update_interfaces()
+                self.update_status()
+            elif event == 'wallet_updated':
+                self.update_status()
+                self.update_wallet()
+            elif event == 'blockchain_updated':
+                # to update number of confirmations in history
+                self.update_wallet()
+            elif event == 'status':
+                self.update_status()
+            elif event == 'new_transaction':
+                self.update_wallet()
+            elif event == 'verified':
+                self.update_wallet()
+            elif event == 'set_server_status':
+                if self.callbackIntent is not None:
+                    print("")
+                    #self.callbackIntent.onCallback("set_server_status", args[0])
 
     def timer_action(self):
-        self.update_wallet()
-        self.update_interfaces()
-        t = threading.Timer(5.0, self.timer_action)
-        t.start()
+        if self.wallet.wallet_type == "standard":
+            self.update_wallet()
+            self.update_interfaces()
+            t = threading.Timer(5.0, self.timer_action)
+            t.start()
 
     def daemon_action(self):
         self.daemon_running = True
@@ -407,8 +411,11 @@ class AndroidCommands(commands.Commands):
                 return
             if db.get_action():
                 return
-            wallet = Wallet(db, storage, config=self.config)
-            wallet.start_network(self.network)
+            if db.get('wallet_type') == "eth_standard":
+                wallet = Eth_Wallet(db, storage, config=self.config)
+            else:
+                wallet = Wallet(db, storage, config=self.config)
+                wallet.start_network(self.network)
             self.daemon.add_wallet(wallet)
 
     def close_wallet(self, name=None):
@@ -423,7 +430,7 @@ class AndroidCommands(commands.Commands):
         try:
             self.label_flag = flag
             self.config.set_key('use_labels', bool(flag))
-            if self.label_flag and self.wallet and self.wallet.wallet_type != "standard":
+            if self.label_flag and self.wallet and self.wallet.wallet_type != "btc-standard" and self.wallet.wallet_type != "eth-standard":
                 self.label_plugin.load_wallet(self.wallet)
         except Exception as e:
             raise BaseException(e)
@@ -979,7 +986,7 @@ class AndroidCommands(commands.Commands):
             raise BaseException(e)
         else:
             self.wallet.save_db()
-            self.callbackIntent.onCallback("update_history", "update history")
+            #self.callbackIntent.onCallback("update_history", "update history")
             # need to update at least: history_list, utxo_list, address_list
 
     def update_invoices(self, old_tx, new_tx):
@@ -1310,247 +1317,247 @@ class AndroidCommands(commands.Commands):
             raise BaseException(e)
 
     ##connection with terzorlib#########################
-    def hardware_verify(self, msg, path='android_usb'):
-        client = self.get_client(path=path)
-        try:
-            from hashlib import sha256
-            digest = sha256(msg.encode("utf-8")).digest()
-            response = device.se_verify(client.client, digest)
-        except Exception as e:
-            raise BaseException(e)
-        verify_info = {}
-        verify_info['data'] = msg
-        verify_info['cert'] = response.cert.hex()
-        verify_info['signature'] = response.signature.hex()
-        return json.dumps(verify_info)
-
-    def backup_wallet(self, path='android_usb'):
-        client = self.get_client(path=path)
-        try:
-            response = client.backup()
-        except Exception as e:
-            raise BaseException(e)
-        return response
-
-    def se_proxy(self, message, path='android_usb') -> str:
-        client = self.get_client(path=path)
-        try:
-            response = client.se_proxy(message)
-        except Exception as e:
-            raise BaseException(e)
-        return response
-
-    def recovery_wallet(self, path='android_usb', *args):
-        client = self.get_client(path=path)
-        try:
-            response = client.recovery(*args)
-        except Exception as e:
-            raise BaseException(e)
-        return response
-
-    def bx_inquire_whitelist(self, path='android_usb', **kwargs):
-        client = self.get_client(path=path)
-        try:
-            response = json.dumps(client.bx_inquire_whitelist(**kwargs))
-        except Exception as e:
-            raise BaseException(e)
-        return response
-
-    def bx_add_or_delete_whitelist(self, path='android_usb', **kwargs):
-        client = self.get_client(path=path)
-        try:
-            response = json.dumps(client.bx_add_or_delete_whitelist(**kwargs))
-        except Exception as e:
-            raise BaseException(e)
-        return response
-
-    def apply_setting(self, path='nfc', **kwargs):
-        client = self.get_client(path=path)
-        try:
-            resp = device.apply_settings(client.client, **kwargs)
-            if resp == "Settings applied":
-                return 1
-            else:
-                return 0
-        except Exception as e:
-            raise BaseException(e)
-
-    def init(self, path='android_usb', label="BIXIN KEY", language='english', use_se=True):
-        client = self.get_client(path=path)
-        try:
-            if use_se:
-                device.apply_settings(client.client, use_se=True)
-            response = client.reset_device(skip_backup=True, language=language, pin_protection=False,
-                                           passphrase_protection=True, label=label)
-        except Exception as e:
-            raise BaseException(e)
-        if response == "Device successfully initialized":
-            return 1
-        else:
-            return 0
-
-    def reset_pin(self, path='android_usb') -> int:
-        # self.client = None
-        # self.path = ''
-        try:
-            client = self.get_client(path)
-            resp = client.set_pin(False)
-        except Exception as e:
-            if isinstance(e, exceptions.PinException):
-                return 0
-            else:
-                raise BaseException(e)
-        if resp == "PIN changed":
-            return 1
-        else:
-            return 0
-
-    def show_address(self, address, path='android_usb'):
-        try:
-            plugin = self.plugin.get_plugin("trezor")
-            plugin.show_address(path=path, ui=CustomerUI(), wallet=self.wallet, address=address)
-        except Exception as e:
-            raise BaseException(e)
-        
-
-    def wipe_device(self, path='android_usb') -> int:
-        # self.client = None
-        # self.path = ''
-        try:
-            client = self.get_client(path)
-            resp = client.wipe_device()
-        except Exception as e:
-            if isinstance(e, exceptions.PinException):
-                return 0
-            else:
-                raise BaseException(e)
-        if resp == "Device wiped":
-            return 1
-        else:
-            return 0
-
-    def toggle_passphrash(self, path='android_usb'):
-        client = self.get_client(path)
-        client.toggle_passphrase()
-
-    def get_passphrase_status(self, path='android_usb'):
-        # self.client = None
-        # self.path = ''
-        client = self.get_client(path=path)
-        return client.features.passphrase_protection
-
-    def get_client(self, path='android_usb', ui=CustomerUI(), clean=False):
-        plugin = self.plugin.get_plugin("trezor")
-        if clean:
-            plugin.clean()
-        return plugin.get_client(path=path, ui=ui)
-
-    def is_encrypted_with_hw_device(self):
-        ret = self.wallet.storage.is_encrypted_with_hw_device()
-        print(f"hw device....{ret}")
-
-    def get_feature(self, path='android_usb'):
-        # self.client = None
-        # self.path = ''
-        with self.lock:
-            client = self.get_client(path=path, clean=True)
-        return json.dumps(protobuf.to_dict(client.features))
-
-    def get_xpub_from_hw(self, path='android_usb', _type='p2wsh', is_creating=True):
-        client = self.get_client(path=path)
-        if _type == "p2wsh":
-            derivation = purpose48_derivation(0, xtype='p2wsh')
-            #derivation = bip44_derivation(0, bip43_purpose=48)
-        else:
-            derivation = bip44_derivation(0, bip43_purpose=84)
-        try:
-            xpub = client.get_xpub(derivation, _type, creating=is_creating)
-        except Exception as e:
-            raise BaseException(e)
-        return xpub
-
-    def firmware_update(
-            self,
-            filename,
-            path,
-            type="",
-            fingerprint=None,
-            skip_check=True,
-            raw=False,
-            dry_run=False,
-    ):
-        """
-        Upload new firmware to device.
-        Note : Device must be in bootloader mode.
-        """
-        # self.client = None
-        # self.path = ''
-        client = self.get_client(path)
-        features = client.features
-        if not features.bootloader_mode:
-            resp = client.client.call(messages.BixinReboot())
-            if not dry_run and not isinstance(resp, messages.Success):
-                raise RuntimeError("Device turn into bootloader failed")
-            time.sleep(2)
-            client.client.init_device()
-        if not dry_run and not client.features.bootloader_mode:
-            raise BaseException("Please switch your device to bootloader mode.")
-
-        bootloader_onev2 = features.major_version == 1 and features.minor_version >= 8
-
-        if filename:
-            try:
-                if type:
-                    data = parse(filename)
-                else:
-                    with open(filename, "rb") as file:
-                        data = file.read()
-            except Exception as e:
-                raise BaseException(e)
-        else:
-            raise BaseException("Please Give The File Name")
-
-        if not raw and not skip_check:
-            try:
-                version, fw = firmware.parse(data)
-            except Exception as e:
-                raise BaseException(e)
-
-            trezorctl.validate_firmware(version, fw, fingerprint)
-            if (
-                    bootloader_onev2
-                    and version == firmware.FirmwareFormat.TREZOR_ONE
-                    and not fw.embedded_onev2
-            ):
-                raise BaseException("Firmware is too old for your device. Aborting.")
-            elif not bootloader_onev2 and version == firmware.FirmwareFormat.TREZOR_ONE_V2:
-                raise BaseException("You need to upgrade to bootloader 1.8.0 first.")
-
-            if features.major_version not in trezorctl.ALLOWED_FIRMWARE_FORMATS:
-                raise BaseException("trezorctl doesn't know your device version. Aborting.")
-            elif version not in trezorctl.ALLOWED_FIRMWARE_FORMATS[features.major_version]:
-                raise BaseException("Firmware does not match your device, aborting.")
-
-        if not raw:
-            # special handling for embedded-OneV2 format:
-            # for bootloader < 1.8, keep the embedding
-            # for bootloader 1.8.0 and up, strip the old OneV1 header
-            if bootloader_onev2 and data[:4] == b"TRZR" and data[256: 256 + 4] == b"TRZF":
-                print("Extracting embedded firmware image (fingerprint may change).")
-                data = data[256:]
-
-        if dry_run:
-            print("Dry run. Not uploading firmware to device.")
-        else:
-            try:
-                if features.major_version == 1 and features.firmware_present is not False:
-                    # Trezor One does not send ButtonRequest
-                    print("Please confirm the action on your Trezor device")
-                return firmware.update(client.client, data, type=type)
-            except exceptions.Cancelled:
-                print("Update aborted on device.")
-            except exceptions.TrezorException as e:
-                raise BaseException("Update failed: {}".format(e))
+    # def hardware_verify(self, msg, path='android_usb'):
+    #     client = self.get_client(path=path)
+    #     try:
+    #         from hashlib import sha256
+    #         digest = sha256(msg.encode("utf-8")).digest()
+    #         response = device.se_verify(client.client, digest)
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #     verify_info = {}
+    #     verify_info['data'] = msg
+    #     verify_info['cert'] = response.cert.hex()
+    #     verify_info['signature'] = response.signature.hex()
+    #     return json.dumps(verify_info)
+    #
+    # def backup_wallet(self, path='android_usb'):
+    #     client = self.get_client(path=path)
+    #     try:
+    #         response = client.backup()
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #     return response
+    #
+    # def se_proxy(self, message, path='android_usb') -> str:
+    #     client = self.get_client(path=path)
+    #     try:
+    #         response = client.se_proxy(message)
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #     return response
+    #
+    # def recovery_wallet(self, path='android_usb', *args):
+    #     client = self.get_client(path=path)
+    #     try:
+    #         response = client.recovery(*args)
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #     return response
+    #
+    # def bx_inquire_whitelist(self, path='android_usb', **kwargs):
+    #     client = self.get_client(path=path)
+    #     try:
+    #         response = json.dumps(client.bx_inquire_whitelist(**kwargs))
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #     return response
+    #
+    # def bx_add_or_delete_whitelist(self, path='android_usb', **kwargs):
+    #     client = self.get_client(path=path)
+    #     try:
+    #         response = json.dumps(client.bx_add_or_delete_whitelist(**kwargs))
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #     return response
+    #
+    # def apply_setting(self, path='nfc', **kwargs):
+    #     client = self.get_client(path=path)
+    #     try:
+    #         resp = device.apply_settings(client.client, **kwargs)
+    #         if resp == "Settings applied":
+    #             return 1
+    #         else:
+    #             return 0
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #
+    # def init(self, path='android_usb', label="BIXIN KEY", language='english', use_se=True):
+    #     client = self.get_client(path=path)
+    #     try:
+    #         if use_se:
+    #             device.apply_settings(client.client, use_se=True)
+    #         response = client.reset_device(skip_backup=True, language=language, pin_protection=False,
+    #                                        passphrase_protection=True, label=label)
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #     if response == "Device successfully initialized":
+    #         return 1
+    #     else:
+    #         return 0
+    #
+    # def reset_pin(self, path='android_usb') -> int:
+    #     # self.client = None
+    #     # self.path = ''
+    #     try:
+    #         client = self.get_client(path)
+    #         resp = client.set_pin(False)
+    #     except Exception as e:
+    #         if isinstance(e, exceptions.PinException):
+    #             return 0
+    #         else:
+    #             raise BaseException(e)
+    #     if resp == "PIN changed":
+    #         return 1
+    #     else:
+    #         return 0
+    #
+    # # def show_address(self, address, path='android_usb'):
+    # #     try:
+    # #         plugin = self.plugin.get_plugin("trezor")
+    # #         plugin.show_address(path=path, ui=CustomerUI(), wallet=self.wallet, address=address)
+    # #     except Exception as e:
+    # #         raise BaseException(e)
+    #
+    #
+    # def wipe_device(self, path='android_usb') -> int:
+    #     # self.client = None
+    #     # self.path = ''
+    #     try:
+    #         client = self.get_client(path)
+    #         resp = client.wipe_device()
+    #     except Exception as e:
+    #         if isinstance(e, exceptions.PinException):
+    #             return 0
+    #         else:
+    #             raise BaseException(e)
+    #     if resp == "Device wiped":
+    #         return 1
+    #     else:
+    #         return 0
+    #
+    # def toggle_passphrash(self, path='android_usb'):
+    #     client = self.get_client(path)
+    #     client.toggle_passphrase()
+    #
+    # def get_passphrase_status(self, path='android_usb'):
+    #     # self.client = None
+    #     # self.path = ''
+    #     client = self.get_client(path=path)
+    #     return client.features.passphrase_protection
+    #
+    # def get_client(self, path='android_usb', ui=CustomerUI(), clean=False):
+    #     plugin = self.plugin.get_plugin("trezor")
+    #     if clean:
+    #         plugin.clean()
+    #     return plugin.get_client(path=path, ui=ui)
+    #
+    # def is_encrypted_with_hw_device(self):
+    #     ret = self.wallet.storage.is_encrypted_with_hw_device()
+    #     print(f"hw device....{ret}")
+    #
+    # def get_feature(self, path='android_usb'):
+    #     # self.client = None
+    #     # self.path = ''
+    #     with self.lock:
+    #         client = self.get_client(path=path, clean=True)
+    #     return json.dumps(protobuf.to_dict(client.features))
+    #
+    # def get_xpub_from_hw(self, path='android_usb', _type='p2wsh', is_creating=True):
+    #     client = self.get_client(path=path)
+    #     if _type == "p2wsh":
+    #         derivation = purpose48_derivation(0, xtype='p2wsh')
+    #         #derivation = bip44_derivation(0, bip43_purpose=48)
+    #     else:
+    #         derivation = bip44_derivation(0, bip43_purpose=84)
+    #     try:
+    #         xpub = client.get_xpub(derivation, _type, creating=is_creating)
+    #     except Exception as e:
+    #         raise BaseException(e)
+    #     return xpub
+    #
+    # def firmware_update(
+    #         self,
+    #         filename,
+    #         path,
+    #         type="",
+    #         fingerprint=None,
+    #         skip_check=True,
+    #         raw=False,
+    #         dry_run=False,
+    # ):
+    #     """
+    #     Upload new firmware to device.
+    #     Note : Device must be in bootloader mode.
+    #     """
+    #     # self.client = None
+    #     # self.path = ''
+    #     client = self.get_client(path)
+    #     features = client.features
+    #     if not features.bootloader_mode:
+    #         resp = client.client.call(messages.BixinReboot())
+    #         if not dry_run and not isinstance(resp, messages.Success):
+    #             raise RuntimeError("Device turn into bootloader failed")
+    #         time.sleep(2)
+    #         client.client.init_device()
+    #     if not dry_run and not client.features.bootloader_mode:
+    #         raise BaseException("Please switch your device to bootloader mode.")
+    #
+    #     bootloader_onev2 = features.major_version == 1 and features.minor_version >= 8
+    #
+    #     if filename:
+    #         try:
+    #             if type:
+    #                 data = parse(filename)
+    #             else:
+    #                 with open(filename, "rb") as file:
+    #                     data = file.read()
+    #         except Exception as e:
+    #             raise BaseException(e)
+    #     else:
+    #         raise BaseException("Please Give The File Name")
+    #
+    #     if not raw and not skip_check:
+    #         try:
+    #             version, fw = firmware.parse(data)
+    #         except Exception as e:
+    #             raise BaseException(e)
+    #
+    #         trezorctl.validate_firmware(version, fw, fingerprint)
+    #         if (
+    #                 bootloader_onev2
+    #                 and version == firmware.FirmwareFormat.TREZOR_ONE
+    #                 and not fw.embedded_onev2
+    #         ):
+    #             raise BaseException("Firmware is too old for your device. Aborting.")
+    #         elif not bootloader_onev2 and version == firmware.FirmwareFormat.TREZOR_ONE_V2:
+    #             raise BaseException("You need to upgrade to bootloader 1.8.0 first.")
+    #
+    #         if features.major_version not in trezorctl.ALLOWED_FIRMWARE_FORMATS:
+    #             raise BaseException("trezorctl doesn't know your device version. Aborting.")
+    #         elif version not in trezorctl.ALLOWED_FIRMWARE_FORMATS[features.major_version]:
+    #             raise BaseException("Firmware does not match your device, aborting.")
+    #
+    #     if not raw:
+    #         # special handling for embedded-OneV2 format:
+    #         # for bootloader < 1.8, keep the embedding
+    #         # for bootloader 1.8.0 and up, strip the old OneV1 header
+    #         if bootloader_onev2 and data[:4] == b"TRZR" and data[256: 256 + 4] == b"TRZF":
+    #             print("Extracting embedded firmware image (fingerprint may change).")
+    #             data = data[256:]
+    #
+    #     if dry_run:
+    #         print("Dry run. Not uploading firmware to device.")
+    #     else:
+    #         try:
+    #             if features.major_version == 1 and features.firmware_present is not False:
+    #                 # Trezor One does not send ButtonRequest
+    #                 print("Please confirm the action on your Trezor device")
+    #             return firmware.update(client.client, data, type=type)
+    #         except exceptions.Cancelled:
+    #             print("Update aborted on device.")
+    #         except exceptions.TrezorException as e:
+    #             raise BaseException("Update failed: {}".format(e))
 
     ####################################################
     ## app wallet
@@ -1630,8 +1637,70 @@ class AndroidCommands(commands.Commands):
         ###create ETH-1
         self.create_eth("ETH-1", password, seed, passphrase, hd=True)
 
-    def create_eth(self, name, password, seed=None, passphrase="", hd=False):
-        print("TODO")
+    def create_eth(self, name, password, seed=None, passphrase="", addresses=None, privkeys=None, keystore=None, hd=False):
+        """Create or restore a new wallet"""
+        print("CREATE in....name = %s" % name)
+        new_seed = ""
+        ks = None
+        path = self._wallet_path(name)
+        if exists(path):
+            raise BaseException("path is exist")
+        storage = WalletStorage(path)
+        db = WalletDB('', manual_upgrades=False)
+        if addresses is not None:
+            wallet = Imported_Eth_Wallet(db, storage, config=self.config)
+            addresses = addresses.split()
+            good_inputs, bad_inputs = wallet.import_addresses(addresses, write_to_disk=False)
+            # FIXME tell user about bad_inputs
+            if not good_inputs:
+                raise BaseException("None of the given address can be imported")
+        elif privkeys is not None or keystore is not None:
+            if keystore is not None:
+                try:
+                    from eth_account import Account
+                    privkeys = Account.decrypt(keystore, password)
+                except ValueError:
+                    raise InvalidPasswordException()
+
+            k = keystore.Imported_Prv_KeyStore({})
+            db.put('keystore', k.dump())
+            wallet = Imported_Wallet(db, storage, config=self.config)
+            keys = keystore.get_private_keys(privkeys, allow_spaces_inside_key=False)
+            good_inputs, bad_inputs = wallet.import_private_keys(keys, None, write_to_disk=False)
+            # FIXME tell user about bad_inputs
+            if not good_inputs:
+                raise BaseException("None of the given privkeys can be imported")
+        else:
+            if seed is None:
+                seed = Mnemonic("english").generate()
+                new_seed = seed
+                print("Your wallet generation seed is:\n\"%s\"" % seed)
+                print("seed type = %s" % type(seed))
+            save_flag = False
+            if new_seed is not None:
+                save_flag = True
+            ks, bip32_seed = keystore.from_eth_bip39_seed(seed, passphrase, derivation="m/44'/60'/0'", create=save_flag)
+            db.put('keystore', ks.dump())
+            wallet = Standard_Eth_Wallet(db, storage, config=self.config)
+        wallet.update_password(old_pw=None, new_pw=password, encrypt_storage=False)
+        # wallet.start_network(self.daemon.network)
+        wallet.save_db()
+        self.daemon.add_wallet(wallet)
+        ####test
+        addrs = wallet.get_addresses()
+        account = wallet.get_account(addrs[0], password)
+        ####test
+        wallet_info = {}
+        wallet_info['type'] = 'eth-hd-standard' if hd and seed is not None else "eth-standard"
+        wallet_info['time'] = time.time()
+        wallet_info['xpubs'] = []
+        wallet_info['seed'] = seed
+        print(f"crate()-----------{wallet.get_keystore().xpub}")
+        self.local_wallet_info[name] = wallet_info
+        self.config.set_key('all_wallet_type_info', self.local_wallet_info)
+        # if self.label_flag:
+        #     self.label_plugin.load_wallet(self.wallet, None)
+        return new_seed
 
     def is_watch_only(self):
         self._assert_wallet_isvalid()
@@ -1648,20 +1717,21 @@ class AndroidCommands(commands.Commands):
         storage = WalletStorage(path)
         db = WalletDB('', manual_upgrades=False)
         if addresses is not None:
-            if addresses is not None and keystore.is_address_list(addresses):
-                wallet = Imported_Wallet(storage, config=self.config)
-                addresses = addresses.split()
-                good_inputs, bad_inputs = wallet.import_addresses(addresses, write_to_disk=False)
-                if not good_inputs:
-                    raise Exception("None of the given addresses can be imported")
-        elif privkeys is not None and keystore.is_private_key_list(privkeys, allow_spaces_inside_key=False):
-            k = keystore.Imported_KeyStore({})
-            storage.put('keystore', k.dump())
-            wallet = Imported_Wallet(storage, config=self.config)
+            wallet = Imported_Wallet(db, storage, config=self.config)
+            addresses = addresses.split()
+            good_inputs, bad_inputs = wallet.import_addresses(addresses, write_to_disk=False)
+            # FIXME tell user about bad_inputs
+            if not good_inputs:
+                raise BaseException("None of the given address can be imported")
+        elif privkeys is not None:
+            ks = keystore.Imported_KeyStore({})
+            db.put('keystore', ks.dump())
+            wallet = Imported_Wallet(db, storage, config=self.config)
             keys = keystore.get_private_keys(privkeys, allow_spaces_inside_key=False)
             good_inputs, bad_inputs = wallet.import_private_keys(keys, None, write_to_disk=False)
+            # FIXME tell user about bad_inputs
             if not good_inputs:
-                raise Exception("None of the given privkeys can be imported")
+                raise BaseException("None of the given privkeys can be imported")
         else:
             if bip39_derivation is not None:
                 ks = keystore.from_bip39_seed(seed, passphrase, bip39_derivation)
@@ -1961,23 +2031,24 @@ class AndroidCommands(commands.Commands):
 
             self.wallet.use_change = self.config.get('use_change', False)
 
-            c, u, x = self.wallet.get_balance()
-            print("console.select_wallet %s %s %s==============" % (c, u, x))
-            print("console.select_wallet[%s] blance = %s wallet_type = %s use_change=%s add = %s " % (
-                name, self.format_amount_and_units(c), self.wallet.wallet_type, self.wallet.use_change,
-                self.wallet.get_addresses()))
-            util.trigger_callback("wallet_updated", self.wallet)
+            if self.wallet.wallet_type == "standard":
+                c, u, x = self.wallet.get_balance()
+                print("console.select_wallet %s %s %s==============" % (c, u, x))
+                print("console.select_wallet[%s] blance = %s wallet_type = %s use_change=%s add = %s " % (
+                    name, self.format_amount_and_units(c), self.wallet.wallet_type, self.wallet.use_change,
+                    self.wallet.get_addresses()))
+                util.trigger_callback("wallet_updated", self.wallet)
 
-            fait = self.daemon.fx.format_amount_and_units(c) if self.daemon.fx else None
-            info = {
-                "balance": self.format_amount(c) + ' (%s)' % fait,
-                "name": name
-            }
-            if self.label_flag and self.wallet.wallet_type != "standard":
-                self.label_plugin.load_wallet(self.wallet)
-                # if self.sync_timer is not None:
-                #     self.sync_timer.cancel()
-                # self.pull_tx_infos()
+                fait = self.daemon.fx.format_amount_and_units(c) if self.daemon.fx else None
+                info = {
+                    "balance": self.format_amount(c) + ' (%s)' % fait,
+                    "name": name
+                }
+                if self.label_flag and self.wallet.wallet_type != "standard":
+                    self.label_plugin.load_wallet(self.wallet)
+            else:
+                info = self.wallet.get_all_balance()
+                self.wallet.send_transaction("111111", "", '0x7B3547B9De73F981741125b4AF5bD0e84eD233F2', 0.5, )
             return json.dumps(info)
         except BaseException as e:
             raise BaseException(e)
@@ -2016,7 +2087,8 @@ class AndroidCommands(commands.Commands):
             self.delete_wallet_from_deamon(self._wallet_path(name))
             if self.local_wallet_info.__contains__(name):
                 wallet_type = self.local_wallet_info.get(name).type
-                if wallet_type == "btc-hd-standard" or -1 != wallet_type.find("btc-hd-hw"):
+                if wallet_type == "btc-hd-standard" or -1 != wallet_type.find("btc-hd-hw")\
+                    or wallet_type == "eth-hd-standard" or -1 != wallet_type.find("eth-hd-hw"):
                     raise BaseException("HD wallet not be delete")
                 self.local_wallet_info.pop(name)
                 self.config.set_key('all_wallet_type_info', self.local_wallet_info)

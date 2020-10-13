@@ -28,7 +28,7 @@ import json
 
 from .util import inv_dict
 from . import bitcoin
-
+from enum import Enum
 
 def read_json(filename, default):
     path = os.path.join(os.path.dirname(__file__), filename)
@@ -173,3 +173,5 @@ def set_testnet():
 def set_regtest():
     global net
     net = BitcoinRegtest
+
+
