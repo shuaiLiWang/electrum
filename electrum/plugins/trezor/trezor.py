@@ -319,6 +319,7 @@ class TrezorPlugin(HW_PluginBase):
         client.used()
         return client
 
+    ## TODO:ADD ETH_CODE
     def get_xpub(self, device_id, derivation, xtype, wizard):
         if xtype not in self.SUPPORTED_XTYPES:
             raise ScriptTypeNotSupported(_('This type of script is not supported with {}.').format(self.device))
@@ -363,6 +364,7 @@ class TrezorPlugin(HW_PluginBase):
             else:
                 return False
 
+    ## TODO:ADD ETH_CODE
     def sign_transaction(self, keystore, tx: PartialTransaction, prev_tx):
         prev_tx = {bfh(txhash): self.electrum_tx_to_txtype(tx) for txhash, tx in prev_tx.items()}
         if not self.client:
@@ -379,6 +381,7 @@ class TrezorPlugin(HW_PluginBase):
         tx.update_signatures(signatures)
         raise Exception("sign success")
 
+    ## TODO:ADD ETH_CODE
     def show_address(self, path, ui, wallet, address, keystore=None):
         if keystore is None:
             keystore = wallet.get_keystore()

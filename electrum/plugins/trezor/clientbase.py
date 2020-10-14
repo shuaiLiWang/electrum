@@ -133,6 +133,9 @@ class TrezorClientBase(HardwareClientBase, Logger):
     def i4b(self, x):
         return pack('>I', x)
 
+    def get_eth_xpub(self):
+        print("TODO")
+
     def get_xpub(self, bip32_path, xtype, creating=False):
         address_n = parse_path(bip32_path)
         with self.run_flow(creating_wallet=creating):
@@ -240,6 +243,9 @@ class TrezorClientBase(HardwareClientBase, Logger):
             return "Trezor T"
         return None
 
+    def show_eth_address(self):
+        print("TODO")
+
     def show_address(self, address_str, script_type, multisig=None):
         coin_name = self.plugin.get_coin_name()
         address_n = parse_path(address_str)
@@ -251,6 +257,9 @@ class TrezorClientBase(HardwareClientBase, Logger):
                 show_display=True,
                 script_type=script_type,
                 multisig=multisig)
+
+    def sign_eth_message(self):
+        print("TODO")
 
     def sign_message(self, address_str, message):
         coin_name = self.plugin.get_coin_name()
@@ -273,6 +282,9 @@ class TrezorClientBase(HardwareClientBase, Logger):
                 **kwargs)
 
     # ========= Unmodified trezorlib methods =========
+
+    def sign_eth_tx(self):
+        print("TODO")
 
     def sign_tx(self, *args, **kwargs):
         with self.run_flow():
