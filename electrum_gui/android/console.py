@@ -1411,12 +1411,12 @@ class AndroidCommands(commands.Commands):
         else:
             return 0
 
-    # def show_address(self, address, path='android_usb'):
-    #     try:
-    #         plugin = self.plugin.get_plugin("trezor")
-    #         plugin.show_address(path=path, ui=CustomerUI(), wallet=self.wallet, address=address)
-    #     except Exception as e:
-    #         raise BaseException(e)
+    def show_address(self, address, path='android_usb'):
+        try:
+            plugin = self.plugin.get_plugin("trezor")
+            plugin.show_address(path=path, ui=CustomerUI(), wallet=self.wallet, address=address)
+        except Exception as e:
+            raise BaseException(e)
 
 
     def wipe_device(self, path='android_usb') -> int:
@@ -1636,7 +1636,7 @@ class AndroidCommands(commands.Commands):
         ###create ETH-1
         #self.create_eth("ETH-1", password, seed, passphrase, hd=True)
 
-'''
+    '''
     def create_eth(self, name, password, seed=None, passphrase="", addresses=None, privkeys=None, keystore=None, hd=False):
         """Create or restore a new wallet"""
         print("CREATE in....name = %s" % name)
@@ -1701,7 +1701,7 @@ class AndroidCommands(commands.Commands):
         # if self.label_flag:
         #     self.label_plugin.load_wallet(self.wallet, None)
         return new_seed
-'''
+    '''
     def is_watch_only(self):
         self._assert_wallet_isvalid()
         return self.wallet.is_watching_only()

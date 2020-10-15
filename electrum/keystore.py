@@ -45,6 +45,7 @@ from .util import (InvalidPassword, WalletFileException,
 from .mnemonic import Mnemonic, Wordlist, seed_type, is_seed
 from .plugin import run_hook
 from .logging import Logger
+from eth_account import Account
 
 if TYPE_CHECKING:
     from .gui.qt.util import TaskThread
@@ -245,6 +246,15 @@ class Imported_KeyStore(Software_KeyStore):
         # Removing keys complicates this further.
         self.keypairs[pubkey] = pw_encode(serialized_privkey, password, version=self.pw_hash_version)
         return txin_type, pubkey
+
+    def import_eth_privkey(self, sec, password):
+        from eth_keys import keys
+        priv_key = keys.PrivateKey(sec)
+        pub_key = priv_key.public_key
+
+        # pubkey = ecc.ECPrivkey(sec).get_public_key_hex(compressed=False)
+        # self.keypairs[pubkey] = pw_encode(sec, password, version=self.pw_hash_version)
+        return pub_key
 
     def delete_imported_key(self, key):
         self.keypairs.pop(key)
@@ -480,7 +490,7 @@ class Xpub(MasterPublicKeyMixin):
         self.is_requesting_to_be_rewritten_to_wallet_file = True
 
     @lru_cache(maxsize=None)
-    def derive_pubkey(self, for_change: int, n: int) -> bytes:
+    def derive_pubkey(self, for_change: int, n: int, compressed=None) -> bytes:
         for_change = int(for_change)
         assert for_change in (0, 1)
         xpub = self.xpub_change if for_change else self.xpub_receive
@@ -491,12 +501,12 @@ class Xpub(MasterPublicKeyMixin):
                 self.xpub_change = xpub
             else:
                 self.xpub_receive = xpub
-        return self.get_pubkey_from_xpub(xpub, (n,))
+        return self.get_pubkey_from_xpub(xpub, (n,), compressed)
 
     @classmethod
-    def get_pubkey_from_xpub(self, xpub: str, sequence) -> bytes:
+    def get_pubkey_from_xpub(self, xpub: str, sequence, compressed=None) -> bytes:
         node = BIP32Node.from_xkey(xpub).subkey_at_public_derivation(sequence)
-        return node.eckey.get_public_key_bytes(compressed=True)
+        return node.eckey.get_public_key_bytes(compressed)
 
 
 class BIP32_KeyStore(Xpub, Deterministic_KeyStore):
@@ -846,8 +856,21 @@ def bip39_is_checksum_valid(mnemonic: str) -> Tuple[bool, bool]:
     return checksum == calculated_checksum, True
 
 
+def from_eth_bip39_seed(seed, passphrase, derivation, xtype=None, create=False):
+    k = BIP32_KeyStore({})
+    if create:
+        k.add_seed(seed)
+        k.passphrase = passphrase
+    bip32_seed = bip39_to_seed(seed, passphrase)
+    if xtype is None:
+        xtype = xtype_from_derivation(derivation)
+    k.add_xprv_from_seed(bip32_seed, xtype, derivation)
+    return k, bip32_seed
+
 def from_bip39_seed(seed, passphrase, derivation, xtype=None):
     k = BIP32_KeyStore({})
+    k.add_seed(seed)
+    k.passphrase = passphrase
     bip32_seed = bip39_to_seed(seed, passphrase)
     if xtype is None:
         xtype = xtype_from_derivation(derivation)
@@ -945,6 +968,15 @@ def get_private_keys(text, *, allow_spaces_inside_key=True, raise_on_error=False
     if bool(parts) and all(bitcoin.is_private_key(x, raise_on_error=raise_on_error) for x in parts):
         return parts
 
+def get_eth_private_key(text, *, allow_spaces_inside_key=True):
+    if allow_spaces_inside_key:  # see #1612
+        parts = text.split('\n')
+        parts = map(lambda x: ''.join(x.split()), parts)
+        parts = list(filter(bool, parts))
+    else:
+        parts = text.split()
+    #if bool(parts) and all(ecc.ECPrivkey.normalize_secret_bytes(x[2:]) for x in parts):
+        return parts
 
 def is_private_key_list(text, *, allow_spaces_inside_key=True, raise_on_error=False):
     return bool(get_private_keys(text,
@@ -975,7 +1007,6 @@ def purpose48_derivation(account_id: int, xtype: str) -> str:
         raise Exception('unknown xtype: {}'.format(xtype))
     der = "m/%d'/%d'/%d'/%d'" % (bip43_purpose, coin, account_id, script_type_int)
     return normalize_bip32_derivation(der)
-
 
 def from_seed(seed, passphrase, is_p2sh=False):
     t = seed_type(seed)
