@@ -33,15 +33,15 @@ from electrum.bip32 import BIP32Node, convert_bip32_path_to_list_of_uint32 as pa
 from electrum.network import Network, TxBroadcastError, BestEffortRequestFailed
 from electrum import ecc
 from electrum.pywalib import InvalidPasswordException
-#from trezorlib.customer_ui import CustomerUI
-# from trezorlib import (
-#     btc,
-#     exceptions,
-#     firmware,
-#     protobuf,
-#     messages,
-#     device,
-# )
+from trezorlib.customer_ui import CustomerUI
+from trezorlib import (
+    btc,
+    exceptions,
+    firmware,
+    protobuf,
+    messages,
+    device,
+)
 from trezorlib.cli import trezorctl
 from electrum.wallet_db import WalletDB
 from enum import Enum
@@ -264,7 +264,7 @@ class AndroidCommands(commands.Commands):
                 if self.daemon.fx.is_enabled():
                     text += self.daemon.fx.get_fiat_status_text(c + u + x, self.base_unit, self.decimal_point) or ''
            # print("update_statue out = %s" % (out))
-            #self.callbackIntent.onCallback("update_status", json.dumps(out))
+            self.callbackIntent.onCallback("update_status", json.dumps(out))
 
     def get_remove_flag(self, tx_hash):
         height = self.wallet.get_tx_height(tx_hash).height
@@ -345,8 +345,7 @@ class AndroidCommands(commands.Commands):
                 self.update_wallet()
             elif event == 'set_server_status':
                 if self.callbackIntent is not None:
-                    print("")
-                    #self.callbackIntent.onCallback("set_server_status", args[0])
+                    self.callbackIntent.onCallback("set_server_status", args[0])
 
     def timer_action(self):
         if self.wallet is not None and -1 == self.wallet.wallet_type.find("eth"):
@@ -1318,7 +1317,6 @@ class AndroidCommands(commands.Commands):
             raise BaseException(e)
 
     ##connection with terzorlib#########################
-    '''
     def hardware_verify(self, msg, path='android_usb'):
         client = self.get_client(path=path)
         try:
@@ -1560,7 +1558,6 @@ class AndroidCommands(commands.Commands):
                 print("Update aborted on device.")
             except exceptions.TrezorException as e:
                 raise BaseException("Update failed: {}".format(e))
-    '''
     ####################################################
     ## app wallet
     def export_seed(self, password):
@@ -1796,6 +1793,7 @@ class AndroidCommands(commands.Commands):
             wallet.status_flag = "hd"
             self.config.set_key("btc_derivat_path", bip39_derivation)
             self.btc_hd_wallet = wallet
+
         wallet.update_password(old_pw=None, new_pw=password, encrypt_storage=False)
         wallet.start_network(self.daemon.network)
         wallet.save_db()
