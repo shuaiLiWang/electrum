@@ -191,8 +191,8 @@ class AndroidCommands(commands.Commands):
                         info['time'] = time.time()
                     if not info.__contains__('xpubs'):
                         info['xpubs'] = []
-                    if not info.__contains__('seed'):
-                        info['seed'] = ""
+                    #if not info.__contains__('seed'):
+                    info['seed'] = ""
                     new_wallet_info[name] = info
             self.local_wallet_info = new_wallet_info
             self.config.set_key('all_wallet_type_info', self.local_wallet_info)
@@ -1563,8 +1563,12 @@ class AndroidCommands(commands.Commands):
         return mnemonic.is_seed(x)
 
     def is_exist_seed(self, seed):
+        ks = keystore.from_seed(seed, '', False) 
+        ks44 = keystore.from_bip39_seed(seed, '', bip44_derivation(0, bip43_purpose=44))
+        ks84 = keystore.from_bip39_seed(seed, '', bip44_derivation(0, bip43_purpose=84))
+        ks49 = keystore.from_bip39_seed(seed, '', bip44_derivation(0, bip43_purpose=49))
         for key, value in self.local_wallet_info.items():
-            if value['seed'] == seed:
+            if value['xpubs'][0] == ks.xpub or value['xpubs'][0] == ks44.xpub or value['xpubs'][0] == ks84.xpub or value['xpubs'][0] == ks49.xpub:
                 raise BaseException(f"The same seed have create wallet, name={key}")
 
     def get_addrs_from_seed(self, seed, passphrase=""):
@@ -1641,8 +1645,8 @@ class AndroidCommands(commands.Commands):
         wallet_info = {}
         wallet_info['type'] = 'standard'
         wallet_info['time'] = time.time()
-        wallet_info['xpubs'] = []
-        wallet_info['seed'] = seed
+        wallet_info['xpubs'] = [wallet.get_keystore().xpub]
+        wallet_info['seed'] = ''
         print(f"crate()-----------{wallet.get_keystore().xpub}")
         self.local_wallet_info[name] = wallet_info
         self.config.set_key('all_wallet_type_info', self.local_wallet_info)
