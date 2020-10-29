@@ -10,7 +10,7 @@ class Eth_Contract:
     # my_address = '0xc3519C4560BcfE3Ac0b137f1067d1655ed65FEa4'
     # metamask_address = '0xAAD533eb7Fe7F2657960AC7703F87E10c73ae73b'
 
-    def __init__(self, symbol, address, pywalib):
+    def __init__(self, symbol, address):
         """
         Constructor
         :param address: contract address or ESN name
@@ -18,8 +18,10 @@ class Eth_Contract:
         """
         self.address = address
         self.symbol = symbol
-        self.w3 = pywalib.get_web3()
+        self.w3 = PyWalib.get_web3()
+        import json
         self.contract = self.w3.eth.contract(address=address, abi=get_abi_json())
+        #self.contract = self.w3.eth.contract(address=address, abi=abi)
         self.contract_decimals = self.contract.functions.decimals().call()
 
     # def add_new_contract(self, contract_symbol, contract_address):
@@ -38,7 +40,14 @@ class Eth_Contract:
         :type wallet_address: string
         :return: balance as decimal number
         """
-        return self.contract.functions.balanceOf(wallet_address).call() / (10 ** self.contract_decimals)
+        #return self.contract.functions.balanceOf(wallet_address).call() / (10 ** self.contract_decimals)
+        return self.contract.functions.balanceOf(wallet_address).call()
+
+    def get_address(self):
+        return self.address
+
+    def get_symbol(self):
+        return self.symbol
 
     def get_decimals(self):
         """

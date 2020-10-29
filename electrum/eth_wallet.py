@@ -78,8 +78,7 @@ from eth_utils.address import to_checksum_address
 from eth_keys.utils.address import public_key_bytes_to_address
 if TYPE_CHECKING:
     from .network import Network
-from .pywalib import PyWalib, ERC20NotExistsException, InvalidValueException, InvalidAddress, InsufficientFundsException
-from .eth_transaction import Eth_Transaction
+from .pywalib import PyWalib
 _logger = get_logger(__name__)
 
 class InternalAddressCorruption(Exception):
@@ -116,7 +115,6 @@ class Abstract_Eth_Wallet(ABC):
         # load addresses needs to be called before constructor for sanity checks
         db.load_addresses(self.wallet_type)
         self.keystore = None  # type: Optional[KeyStore]  # will be set by load_keystore
-        self.pywalib = PyWalib()
         self.lock = threading.RLock()
         self.load_and_cleanup()
         # saved fields
@@ -173,33 +171,22 @@ class Abstract_Eth_Wallet(ABC):
 
     def get_all_balance(self, wallet_address):
         eth_info = {}
-        eth, balance = self.get_balance(wallet_address)
+        eth, balance = PyWalib.get_balance(wallet_address)
         eth_info['eth'] = balance
-        for symbol, address in self.contacts():
-            symbol, balance = self.get_balance(wallet_address, symbol)
+        for symbol, contract in self.contacts.items():
+            symbol, balance = PyWalib.get_balance(wallet_address, contract)
             eth_info[symbol] = balance
-        return json.dumps(eth_info)
+        return eth_info
 
     def add_contract_token(self, contract_symbol, contract_address):
-        contract = Eth_Contract(contract_symbol, contract_address, self.pywalib)
+        contract = Eth_Contract(contract_symbol, contract_address)
         self.contacts[contract_symbol] = contract
+
+    def get_contract_token(self, contract_symbol):
+        return self.contacts[contract_symbol]
 
     def delete_contract_token(self, contract_symbol):
         del self.contacts[contract_symbol]
-
-    def get_balance(self, wallet_address, token_symbol=None):
-        if token_symbol is None:
-            #balance = self.pywalib.get_balance(wallet_address)
-            eth_balance = self.pywalib.web3.fromWei(self.pywalib.web3.eth.getBalance(wallet_address), 'ether')
-            return "eth", eth_balance
-        else:
-            try:  # check if token is added to the wallet
-                contract = self.contacts[token_symbol]
-            except KeyError:
-                raise ERC20NotExistsException()
-            erc_balance = contract.get_balance(wallet_address)
-            return token_symbol, erc_balance
-
 
     def load_and_cleanup(self):
         self.load_keystore()
@@ -735,6 +722,11 @@ class Imported_Eth_Wallet(Simple_Eth_Wallet):
         prvk = self.keystore.get_eth_private_key(pubk, password)
         return prvk
 
+    def get_account(self, address, password):
+        private_key = self.export_private_key(address, password)
+        print(f"get_account....{private_key}")
+        return Account.privateKeyToAccount(private_key)
+
     def export_keystore(self, address, password):
         prvk = self.export_private_key(address, password)
         encrypted_private_key = Account.encrypt(prvk, password)
@@ -751,7 +743,7 @@ class Imported_Eth_Wallet(Simple_Eth_Wallet):
         good_addr = []  # type: List[str]
         bad_addr = []  # type: List[Tuple[str, str]]
         for address in addresses:
-            if not self.pywalib.web3.isChecksumAddress(address):
+            if not PyWalib.get_web3().isChecksumAddress(address):
                 bad_addr.append((address, _('invalid address')))
                 continue
             if self.db.has_imported_address(address):
@@ -1100,93 +1092,6 @@ class Standard_Eth_Wallet(Simple_Eth_Deterministic_Wallet):
         path = self.db.get_address_index(address)
         private_key = self.export_private_key_for_path(path, password)
         return private_key
-
-    def send_transaction(self, password, from_address, to_address, value, token_symbol=None, gas_price_speed=20):
-        from_address = self.get_addresses()[0]
-        transaction = Eth_Transaction(
-            account=self.get_account(from_address, password),
-            w3=self.pywalib.web3
-        )
-
-        # check if value to send is possible to convert to the number
-        try:
-            float(value)
-        except ValueError:
-            raise InvalidValueException()
-
-        if token_symbol is None:  # create ETH transaction dictionary
-            tx_dict = transaction.build_transaction(
-                to_address=to_address,
-                value=self.pywalib.web3.toWei(value, "ether"),
-                gas=21000,  # fixed gasLimit to transfer ether from one EOA to another EOA (doesn't include contracts)
-                gas_price=self.pywalib.web3.eth.gasPrice * gas_price_speed,
-                # be careful about sending more transactions in row, nonce will be duplicated
-                nonce=self.pywalib.web3.eth.getTransactionCount(self.get_addresses()[0]),
-                chain_id=self.pywalib.chain_id.value
-            )
-        # else:  # create ERC20 contract transaction dictionary
-        #     try:  # check if token is added to the wallet
-        #         contract_address = configuration.contracts[token_symbol]
-        #     except KeyError:
-        #         raise ERC20NotExistsException()
-        #     contract = Contract(configuration, contract_address)
-        #     erc20_decimals = contract.get_decimals()
-        #     token_amount = int(float(value) * (10 ** erc20_decimals))
-        #     data_for_contract = Transaction.get_tx_erc20_data_field(to_address, token_amount)
-        #
-        #     # check whether there is sufficient ERC20 token balance
-        #     erc20_balance, _ = WalletAPI.get_balance(configuration, token_symbol)
-        #     if float(value) > erc20_balance:
-        #         raise InsufficientERC20FundsException()
-
-            # calculate how much gas I need, unused gas is returned to the wallet
-            # estimated_gas = self.pywalib.web3.eth.estimateGas(
-            #     {'to': contract_address,
-            #      'from': wallet.get_address(),
-            #      'data': data_for_contract
-            #      })
-            #
-            # tx_dict = transaction.build_transaction(
-            #     to_address=contract_address,  # receiver address is defined in data field for this contract
-            #     value=0,  # amount of tokens to send is defined in data field for contract
-            #     gas=estimated_gas,
-            #     gas_price=w3.eth.gasPrice * gas_price_speed,
-            #     # be careful about sending more transactions in row, nonce will be duplicated
-            #     nonce=w3.eth.getTransactionCount(wallet.get_address()),
-            #     chain_id=configuration.network,
-            #     data=data_for_contract
-            # )
-
-        # check whether to address is valid checksum address
-        if not self.pywalib.web3.isChecksumAddress(to_address):
-            raise InvalidAddress()
-
-        # check whether there is sufficient eth balance for this transaction
-        balance = self.get_balance(self.get_addresses()[0])
-        transaction_const_wei = tx_dict['gas'] * tx_dict['gasPrice']
-        transaction_const_eth = self.pywalib.web3.fromWei(transaction_const_wei, 'ether')
-        if token_symbol is None:
-            if (transaction_const_eth + Decimal(value)) > balance:
-                raise InsufficientFundsException()
-        else:
-            if transaction_const_eth > balance:
-                raise InsufficientFundsException()
-
-        # send transaction
-        tx_hash = transaction.send_transaction(tx_dict)
-
-        print('Pending', end='', flush=True)
-        while True:
-            tx_receipt = self.pywalib.web3.eth.getTransactionReceipt(tx_hash)
-            if tx_receipt is None:
-                print('.', end='', flush=True)
-                time.sleep(1)
-            else:
-                print('\nTransaction mined!')
-                break
-
-        return tx_hash, transaction_const_eth
-
 
 wallet_types = ['standard', 'multisig', 'imported']
 

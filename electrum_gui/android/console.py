@@ -33,6 +33,7 @@ from electrum.bip32 import BIP32Node, convert_bip32_path_to_list_of_uint32 as pa
 from electrum.network import Network, TxBroadcastError, BestEffortRequestFailed
 from electrum import ecc
 from electrum.pywalib import InvalidPasswordException
+from electrum.pywalib import ChainID, PyWalib, ERC20NotExistsException, InvalidValueException, InvalidAddress, InsufficientFundsException
 from trezorlib.customer_ui import CustomerUI
 from trezorlib import (
     btc,
@@ -137,6 +138,7 @@ class AndroidCommands(commands.Commands):
         # Initialize here rather than in start() so the DaemonModel has a chance to register
         # its callback before the daemon threads start.
         self.daemon = daemon.Daemon(self.config, fd)
+        self.pywalib = PyWalib(chain_id=ChainID.CUSTOMER)
         self.network = self.daemon.network
         self.daemon_running = False
         self.wizard = None
@@ -196,7 +198,7 @@ class AndroidCommands(commands.Commands):
         self.start()
 
     def init_account_id_list(self, coin):
-        account_list = self.config.get('%s_derived_account_id_num' %coin, None)
+        account_list = self.config.get('%s_derived_account_id_num' %coin, [])
         if len(account_list) == 0:
             account_list = [i + 1 for i in range(RECOVERY_DERIVAT_NUM)]
             self.config.set_key('%s_derived_account_id_num' %coin, account_list)
@@ -755,12 +757,15 @@ class AndroidCommands(commands.Commands):
         except Exception as e:
             raise BaseException(e)
 
-    def mktx(self, outputs=None, message=None):
+    def mktx(self, tx=None, outputs=None, message=None):
         try:
             self._assert_wallet_isvalid()
-            tx = tx_from_any(str(self.tx))
+            tx = tx_from_any(tx)
             tx.deserialize()
-            self.do_save(tx)
+            try:
+                self.do_save(tx)
+            except BaseException as e:
+                pass
         except Exception as e:
             raise BaseException(e)
 
@@ -986,6 +991,7 @@ class AndroidCommands(commands.Commands):
             'sign_status': [s, r],
             'output_addr': out_list,
             'input_addr': in_list,
+            'height': tx_details.tx_mined_status.height,
             'cosigner': [x.xpub for x in self.wallet.get_keystores()],
             'tx': str(tx)
         }
@@ -1129,7 +1135,6 @@ class AndroidCommands(commands.Commands):
     def get_wallet_address_show_UI(self, next=None):
         try:
             self._assert_wallet_isvalid()
-
             self.show_addr = self.config.get('%s_show_addr' % self.wallet, self.wallet.get_addresses()[0])
             if next:
                 addr = self.wallet.create_new_address(False)
@@ -1331,6 +1336,16 @@ class AndroidCommands(commands.Commands):
         return verified
 
     ###############
+    def sign_eth_tx(self, path='android_usb', to_addr, value, password=None, symbol=None):
+        checksum_to_address = self.pywalib.web3.toChecksumAddress(self.wallet.get_addresses()[0])
+        if symbol is None:
+            send = self.pywalib.send_transaction(self.wallet.get_account(checksum_to_address, password), checksum_to_address,
+                                              to_addr, value)
+        else:
+            con_addr = self.wallet.get_contract_token(symbol)
+            send = self.pywalib.send_transaction(self.wallet.get_account(checksum_to_address, password), checksum_to_address,
+                                             to_addr, value,
+                                             contract=con_addr)
 
     def sign_tx(self, tx, path='android_usb', password=None):
         try:
@@ -1628,7 +1643,7 @@ class AndroidCommands(commands.Commands):
                 print("Update aborted on device.")
             except exceptions.TrezorException as e:
                 raise BaseException("Update failed: {}".format(e))
-    
+
     ####################################################
     ## app wallet
     def export_seed(self, password):
@@ -1718,7 +1733,7 @@ class AndroidCommands(commands.Commands):
             print("seed type = %s" % type(seed))
 
         ###create BTC-1
-        self.create("BTC-1", password, seed=seed, passphrase=passphrase, bip39_derivation=bip44_derivation(0, 44), hd=True)
+        self.create("BTC-1", password, seed=seed, passphrase=passphrase, bip39_derivation=bip44_derivation(0, 84), hd=True)
         ###create ETH-1
         self.create_eth("ETH-1", password, seed=seed, passphrase=passphrase, bip39_derivation=bip44_eth_derivation(0, 44), hd=True)
         if new_seed is None:
@@ -1790,19 +1805,28 @@ class AndroidCommands(commands.Commands):
             self.eth_hd_wallet = wallet
             #self.check_pw_wallet = self.btc_hd_wallet
             wallet_type = 'eth-hd-standard'
-        ####test
-        # data = wallet.has_seed()
-        # inti = wallet.is_watching_only()
+        # ####test
+        # # data = wallet.has_seed()
+        # # inti = wallet.is_watching_only()
         # address = wallet.get_addresses()
-        # seed = wallet.get_seed(password)
-        # priv = wallet.export_private_key(address[0], password)
-        # keysor = wallet.export_keystore(address[0], password)
+        # # seed = wallet.get_seed(password)
+        # # priv = wallet.export_private_key(address[0], password)
+        # # keysor = wallet.export_keystore(address[0], password)
         # addrs = wallet.get_addresses()
-        # status = wallet.pywalib.web3.isChecksumAddress(addrs[0])
+        # checksum_from_address = self.pywalib.web3.toChecksumAddress(address[0])
+        # status = self.pywalib.web3.isChecksumAddress(checksum_from_address)
+        # ba = self.pywalib.get_balance(checksum_from_address)
         # #status-erc = wallet.pywalib.web3.isChecksumAddress('0x6b175474e89094c44da98b954eedeac495271d0f')
-        # account = wallet.get_account(addrs[0], password)
-        # wallet.add_contract_token('DAI', '0x6b175474e89094c44da98b954eedeac495271d0f')
-        # balance = wallet.get_balance(addrs[0], 'DAI')
+        # #account = wallet.get_account(addrs[0], password)
+        # wallet.add_contract_token('eos', PyWalib.get_web3().toChecksumAddress('0x7241646b38a7f4693bcefa45707be2b117e58819'))
+        # balance = self.pywalib.get_balance(PyWalib.get_web3().toChecksumAddress(addrs[0]), wallet.get_contract_token("eos"))
+        # all_balance = wallet.get_all_balance(checksum_from_address)
+        # #checksum_to_address = wallet.pywalib.web3.toChecksumAddress("0x28c5841c18fd74c7c6a09c6df9c91139c202e39a")
+        # # con_addr = wallet.get_contract_token("eos")
+        # # send = self.pywalib.send_transaction(wallet.get_account(addrs[0], password), addrs[0],
+        # #                                      "0x28c5841c18fd74c7c6a09c6df9c91139c202e39a", 1)
+        # # send = self.pywalib.send_transaction(wallet.get_account(addrs[0], password), addrs[0], "0x28c5841c18fd74c7c6a09c6df9c91139c202e39a", 1, token_symbol="eos", contract=con_addr)
+
         ####test
         wallet_info = {}
         wallet_info['type'] = 'eth-hd-standard' if hd and seed is not None else "eth-standard"
@@ -1814,6 +1838,7 @@ class AndroidCommands(commands.Commands):
         # if self.label_flag:
         #     self.label_plugin.load_wallet(self.wallet, None)
         return new_seed
+
 
     def is_watch_only(self):
         self._assert_wallet_isvalid()
@@ -2412,6 +2437,12 @@ class AndroidCommands(commands.Commands):
                 # info = self.wallet.get_all_balance()
                 # self.wallet.send_transaction("111111", "", '0x7B3547B9De73F981741125b4AF5bD0e84eD233F2', 0.5, )
                 print("ETH get balance")
+
+                addrs = self.wallet.get_addresses()
+                checksum_from_address = self.pywalib.web3.toChecksumAddress(addrs[0])
+                all_balance = self.wallet.get_all_balance(checksum_from_address)
+
+                #send = self.wallet.send_transaction(password, addrs[0])
             else:
                 c, u, x = self.wallet.get_balance()
                 print("console.select_wallet %s %s %s==============" % (c, u, x))

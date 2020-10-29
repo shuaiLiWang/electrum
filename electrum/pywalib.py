@@ -12,14 +12,19 @@ import requests
 from eth_keyfile import keyfile
 from eth_utils import to_checksum_address
 from web3 import HTTPProvider, Web3
+from .eth_transaction import Eth_Transaction
+from decimal import Decimal
 
 ETHERSCAN_API_KEY = "R796P9T31MEA24P8FNDZBCA88UHW8YCNVW"
-INFURA_PROJECT_ID = "529cca6c4c9d4dfb99464c92f4a25689"
+INFURA_PROJECT_ID = "f001ce716b6e4a33a557f74df6fe8eff"
 ROUND_DIGITS = 3
+DEFAULT_GAS_PRICE_GWEI = 4
+DEFAULT_GAS_LIMIT = 25000
+DEFAULT_GAS_SPEED = 1
 KEYSTORE_DIR_PREFIX = expanduser("~")
 # default pyethapp keystore path
 KEYSTORE_DIR_SUFFIX = ".electrum/eth/keystore/"
-DEFAULT_GAS_PRICE_GWEI = 4
+
 REQUESTS_HEADERS = {
     "User-Agent": "https://github.com/AndreMiras/PyWallet",
 }
@@ -96,6 +101,7 @@ class ChainID(Enum):
     MAINNET = 1
     MORDEN = 2
     ROPSTEN = 3
+    CUSTOMER = 11
 
 
 class HTTPProviderFactory:
@@ -105,6 +111,7 @@ class HTTPProviderFactory:
         ChainID.MAINNET: f"https://mainnet.infura.io/v3/{INFURA_PROJECT_ID}",
         # ChainID.ROPSTEN: 'https://api.myetherapi.com/rop',
         ChainID.ROPSTEN: f"https://ropsten.infura.io/v3/{INFURA_PROJECT_ID}",
+        ChainID.CUSTOMER: f"http://127.0.0.1:8545",
     }
 
     @classmethod
@@ -148,53 +155,188 @@ def handle_etherscan_response(response):
 def requests_get(url):
     return requests.get(url, headers=REQUESTS_HEADERS)
 
+headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
+}
 
 class PyWalib:
-
-    def __init__(self, keystore_dir=None, chain_id=ChainID.MAINNET):
-        if keystore_dir is None:
-            keystore_dir = PyWalib.get_default_keystore_path()
-        self.keystore_dir = keystore_dir
-        #self.account_utils = AccountUtils(keystore_dir=self.keystore_dir)
+    web3 = None
+    def __init__(self, chain_id=ChainID.MAINNET):
         self.chain_id = chain_id
         self.provider = HTTPProviderFactory.create(self.chain_id)
-        #self.web3 = Web3(self.provider)
-        self.web3 = Web3(HTTPProvider("https://ropsten.infura.io/v3/57caa86e6f454063b13d717be8cc3408"))
-
-    def get_web3(self):
-        return self.web3
+        PyWalib.web3 = Web3(self.provider)
+        # #self.web3 = Web3(HTTPProvider("https://ropsten.infura.io/v3/57caa86e6f454063b13d717be8cc3408"))
+        # self.web3 =f Web3(HTTPProvider("https://ropsten.infura.io/v3/f001ce716b6e4a33a557f74df6fe8eff"))
+        # #self.web3 = Web3(HTTPProvider("https://mainnet.infura.io/v3/57caa86e6f454063b13d717be8cc3408"))
 
     @staticmethod
-    def get_balance(address, chain_id=ChainID.MAINNET):
-        """
-        Retrieves the balance from etherscan.io.
-        The balance is returned in ETH rounded to the second decimal.
-        """
-        address = to_checksum_address(address)
-        url = get_etherscan_prefix(chain_id)
-        url += (
-            '?module=account&action=balance'
-            '&tag=latest'
-            f'&address={address}'
-            f'&apikey={ETHERSCAN_API_KEY}'
-        )
-        response = requests_get(url)
-        handle_etherscan_response(response)
-        response_json = response.json()
-        balance_wei = int(response_json["result"])
-        balance_eth = balance_wei / float(pow(10, 18))
-        balance_eth = round(balance_eth, ROUND_DIGITS)
-        return balance_eth
+    def get_web3():
+        return PyWalib.web3
 
-    def get_balance_web3(self, address):
-        """
-        The balance is returned in ETH rounded to the second decimal.
-        """
-        address = to_checksum_address(address)
-        balance_wei = self.web3.eth.getBalance(address)
-        balance_eth = balance_wei / float(pow(10, 18))
-        balance_eth = round(balance_eth, ROUND_DIGITS)
-        return balance_eth
+    def get_gas_price(self):
+        try:
+            response = requests.get('https://www.gasnow.org/api/v3/gas/price?utm_source=onekey', headers=headers)
+            obj = response.json()
+            out = dict{}
+            if obj['code'] == 200:
+                for type, wei in obj['data'].items():
+                    fee_info = dict{}
+                    fee_info['price'] = self.web3.fromWei(wei, "ether")
+                    if type == "rapid":
+                        fee_info['time'] = "15 Seconds"
+                    elif type == "fast":
+                        fee_info['time'] = "1 Minute"
+                    elif type == "standard":
+                        fee_info['time'] = "3 Minutes"
+                    elif type == "timestamp":
+                        fee_info['time'] = "> 10 Minutes"
+                    out[type] = fee_info
+            return json.dumps(out)
+        except BaseException as ex:
+            raise ex
+
+    # def get_default_price(self):
+    #     return self.web3.eth.gasPrice * DEFAULT_GAS_SPEED
+
+    # def get_fee(self, speed=1, gas_limit=DEFAULT_GAS_LIMIT, gas_price=None):
+    #     print("TODO....TIME SUPPORT")
+    #     print("TODO....FAIT SUPPORT")
+    #     if gas_price is not None:
+    #         transaction_const_wei = gas_limit * speed * gas_price
+    #     else:
+    #         transaction_const_wei = gas_limit * speed * self.web3.eth.gasPrice
+    #     return self.web3.fromWei(transaction_const_wei, 'ether')
+    #
+    # def get_show_fee(self):
+    #     out = dict()
+    #     out['standard'] = self.get_fee(speed=1.5)
+    #     out['low'] = self.get_fee(speed=1)
+    #     out['fast'] = self.get_fee(speed=2)
+
+    def send_transaction(self, account, from_address, to_address, value, contract=None, gasprice = DEFAULT_GAS_PRICE_GWEI * (10 ** 9)):
+    #def send_transaction(self, account, from_address, to_address, value, contract=None, gasprice, gas_price_speed=20):
+        transaction = Eth_Transaction(
+            account=account,
+            w3=self.web3
+        )
+
+        # check if value to send is possible to convert to the number
+        try:
+            float(value)
+        except ValueError:
+            raise InvalidValueException()
+
+        if contract is None:  # create ETH transaction dictionary
+            tx_dict = transaction.build_transaction(
+                to_address=self.web3.toChecksumAddress(to_address),
+                value=self.web3.toWei(value, "ether"),
+                gas=25000,  # fixed gasLimit to transfer ether from one EOA to another EOA (doesn't include contracts)
+                #gas_price=self.web3.eth.gasPrice * gas_price_speed,
+                gas_price = gasprice,
+                # be careful about sending more transactions in row, nonce will be duplicated
+                nonce=self.web3.eth.getTransactionCount(self.web3.toChecksumAddress(from_address)),
+                chain_id="0x539"
+            )
+        else:  # create ERC20 contract transaction dictionary
+            erc20_decimals = contract.get_decimals()
+            token_amount = int(float(value) * (10 ** erc20_decimals))
+            data_for_contract = Eth_Transaction.get_tx_erc20_data_field(to_address, token_amount)
+
+            # check whether there is sufficient ERC20 token balance
+            _, erc20_balance = self.get_balance(self.web3.toChecksumAddress(from_address), contract)
+            if float(value) > erc20_balance:
+                raise InsufficientERC20FundsException()
+
+            #calculate how much gas I need, unused gas is returned to the wallet
+            estimated_gas = self.pywalib.web3.eth.estimateGas(
+                {'to': contract.get_address(),
+                 'from': from_address,
+                 'data': data_for_contract
+                 })
+
+            tx_dict = transaction.build_transaction(
+                to_address=contract.get_address,  # receiver address is defined in data field for this contract
+                value=0,  # amount of tokens to send is defined in data field for contract
+                gas=estimated_gas,
+                gas_price=gasprice,
+                # be careful about sending more transactions in row, nonce will be duplicated
+                nonce=self.web3.eth.getTransactionCount(self.web3.toChecksumAddress(from_address)),
+                chain_id="0x539",
+                data=data_for_contract
+            )
+
+        # check whether to address is valid checksum address
+        if not self.web3.isChecksumAddress(self.web3.toChecksumAddress(to_address)):
+            raise InvalidAddress()
+
+        # check whether there is sufficient eth balance for this transaction
+        #_, balance = self.get_balance(from_address)
+        balance = self.web3.fromWei(self.web3.eth.getBalance(self.web3.toChecksumAddress(from_address)), 'ether')
+        transaction_const_wei = tx_dict['gas'] * tx_dict['gasPrice']
+        transaction_const_eth = self.web3.fromWei(transaction_const_wei, 'ether')
+        if contract is None:
+            if (transaction_const_eth + Decimal(value)) > balance:
+                raise InsufficientFundsException()
+        else:
+            if transaction_const_eth > balance:
+                raise InsufficientFundsException()
+
+        # send transaction
+        tx_hash = transaction.send_transaction(tx_dict)
+
+        print('Pending', end='', flush=True)
+        while True:
+            tx_receipt = self.web3.eth.getTransactionReceipt(tx_hash)
+            if tx_receipt is None:
+                print('.', end='', flush=True)
+                import time
+                time.sleep(1)
+            else:
+                print('\nTransaction mined!')
+                break
+
+        return tx_hash, transaction_const_eth
+
+    # @staticmethod
+    # def get_balance(address, chain_id=ChainID.MAINNET):
+    #     """
+    #     Retrieves the balance from etherscan.io.
+    #     The balance is returned in ETH rounded to the second decimal.
+    #     """
+    #     address = to_checksum_address(address)
+    #     url = get_etherscan_prefix(chain_id)
+    #     url += (
+    #         '?module=account&action=balance'
+    #         '&tag=latest'
+    #         f'&address={address}'
+    #         f'&apikey={ETHERSCAN_API_KEY}'
+    #     )
+    #     response = requests_get(url)
+    #     handle_etherscan_response(response)
+    #     response_json = response.json()
+    #     balance_wei = int(response_json["result"])
+    #     balance_eth = balance_wei / float(pow(10, 18))
+    #     balance_eth = round(balance_eth, ROUND_DIGITS)
+    #     return balance_eth
+
+    @staticmethod
+    def get_balance(wallet_address, contract=None):
+        if contract is None:
+            eth_balance = PyWalib.get_web3().fromWei(PyWalib.get_web3().eth.getBalance(wallet_address), 'ether')
+            return "eth", eth_balance
+        else:
+            erc_balance = PyWalib.get_web3().fromWei(contract.get_balance(wallet_address))
+            return contract.get_symbol(), erc_balance
+
+    # def get_balance_web3(self, address):
+    #     """
+    #     The balance is returned in ETH rounded to the second decimal.
+    #     """
+    #     address = to_checksum_address(address)
+    #     balance_wei = self.web3.eth.getBalance(address)
+    #     balance_eth = balance_wei / float(pow(10, 18))
+    #     balance_eth = round(balance_eth, ROUND_DIGITS)
+    #     return balance_eth
 
     @staticmethod
     def get_transaction_history(address, chain_id=ChainID.MAINNET):
@@ -276,34 +418,34 @@ class PyWalib:
         else:
             raise UnknownEtherscanException(error)
 
-    def transact(self, account, to, value=0, data='', sender=None, gas=25000,
-                 gasprice=DEFAULT_GAS_PRICE_GWEI * (10 ** 9)):
-        """
-        Signs and broadcasts a transaction.
-        Returns transaction hash.
-        """
-        #address = sender or self.get_main_account().address
-        from_address_normalized = to_checksum_address(sender)
-        to_address_normalized = to_checksum_address(to)
-        nonce = self.web3.eth.getTransactionCount(from_address_normalized)
-        transaction = {
-            'chainId': self.chain_id.value,
-            'gas': gas,
-            'gasPrice': gasprice,
-            'nonce': nonce,
-            'to': to_address_normalized,
-            'value': value,
-        }
-
-        private_key = account.privkey
-        signed_tx = self.web3.eth.account.signTransaction(
-            transaction, private_key)
-        try:
-            tx_hash = self.web3.eth.sendRawTransaction(
-                signed_tx.rawTransaction)
-        except ValueError as e:
-            self.handle_web3_exception(e)
-        return tx_hash
+    # def transact(self, account, to, value=0, data='', sender=None, gas=25000,
+    #              gasprice=DEFAULT_GAS_PRICE_GWEI * (10 ** 9)):
+    #     """
+    #     Signs and broadcasts a transaction.
+    #     Returns transaction hash.
+    #     """
+    #     #address = sender or self.get_main_account().address
+    #     from_address_normalized = to_checksum_address(sender)
+    #     to_address_normalized = to_checksum_address(to)
+    #     nonce = self.web3.eth.getTransactionCount(from_address_normalized)
+    #     transaction = {
+    #         'chainId': self.chain_id.value,
+    #         'gas': gas,
+    #         'gasPrice': gasprice,
+    #         'nonce': nonce,
+    #         'to': to_address_normalized,
+    #         'value': value,
+    #     }
+    #
+    #     private_key = account.privkey
+    #     signed_tx = self.web3.eth.account.signTransaction(
+    #         transaction, private_key)
+    #     try:
+    #         tx_hash = self.web3.eth.sendRawTransaction(
+    #             signed_tx.rawTransaction)
+    #     except ValueError as e:
+    #         self.handle_web3_exception(e)
+    #     return tx_hash
 
     # @staticmethod
     # def deleted_account_dir(keystore_dir):
@@ -375,14 +517,14 @@ class PyWalib:
     #     self.account_utils.update_account_password(
     #         account, new_password, current_password)
 
-    @staticmethod
-    def get_default_keystore_path():
-        """
-        Returns the keystore path, which is the same as the default pyethapp
-        one.
-        """
-        keystore_dir = os.path.join(KEYSTORE_DIR_PREFIX, KEYSTORE_DIR_SUFFIX)
-        return keystore_dir
+    # @staticmethod
+    # def get_default_keystore_path():
+    #     """
+    #     Returns the keystore path, which is the same as the default pyethapp
+    #     one.
+    #     """
+    #     keystore_dir = os.path.join(KEYSTORE_DIR_PREFIX, KEYSTORE_DIR_SUFFIX)
+    #     return keystore_dir
 
     # def get_account_list(self):
     #     """
