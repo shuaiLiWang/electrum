@@ -39,7 +39,7 @@ password = "111111"
 #testcommond.get_xpub_from_hw()
 #testcommond.bixin_load_device(path='android_usb',mnemonics="rocket omit review divert bomb brief mushroom family fatal limb goose lion")
 # data = testcommond.bixin_backup_device()
-# testcommond.load_all_wallet()
+#testcommond.load_all_wallet()
 # testcommond.select_wallet('BTC-1')
 # tx = 'cHNidP8BAHcCAAAAAcny3Df2+QeVX1q6Z6Od26cvF7qT2PS2++HcC2co26OAAQAAAAD9////AgAAAAAAAAAAGXapFIsnKYltSXUB21OiEBOHQ5/43GqSiKwY4ZcAAAAAABl2qRSLJymJbUl1AdtTohATh0Of+NxqkoisAAAAAAABAOECAAAAAAEBspXL1JU8cZewirTQJMWRhmlyOlsJO2unVrwjL2MXweMBAAAAAP7///8CVDyuRgAAAAAWABR45N26W2qOhL4s/7Xsn/t0cqWeWYCWmAAAAAAAGXapFIsnKYltSXUB21OiEBOHQ5/43GqSiKwCRzBEAiBudIFX3JM09tyMbPwKDzbPqbI/K7+T3sFnfVQN3gqtXAIgXJ4ldMdvTMp12TlxaKBOyKeNJ9G2m8bpPbuGRGPk9DABIQI/c3Qs7wI9WOCsNTU7PPb+et7TsuNoV1JN5w7B7aRbyq4OAABCBgTuF/H0tleUwFpnYS6tRxc4hNIgYsgVDhhjulcJsSqe1QdRSHeTJRwLocbA1Pbrz7hNiVylTz96IY7keh1L2OlzDF3WrSQAAAAAAAAAAABCAgTuF/H0tleUwFpnYS6tRxc4hNIgYsgVDhhjulcJsSqe1QdRSHeTJRwLocbA1Pbrz7hNiVylTz96IY7keh1L2OlzDF3WrSQAAAAAAAAAAABCAgTuF/H0tleUwFpnYS6tRxc4hNIgYsgVDhhjulcJsSqe1QdRSHeTJRwLocbA1Pbrz7hNiVylTz96IY7keh1L2OlzDF3WrSQAAAAAAAAAAAA='
 # testcommond.mktx(tx)
@@ -51,9 +51,10 @@ password = "111111"
 #testcommond.load_all_wallet()
 # data = testcommond.list_wallets()
 # #data = json.loads(info)
-#wallet_name = []
-#wallet_name.append('der_1')
-#testcommond.recovery_confirmed(wallet_name)
+
+# wallet_name = []
+# wallet_name.append('der_1')
+# testcommond.recovery_confirmed(wallet_name)
 #testcommond.create_derived_wallet("der_ETH_1", password, 'eth')
 #testcommond.create_derived_wallet("der_ETH_2", password, 'eth')
 #testcommond.delete_wallet('ETH-1')
@@ -198,15 +199,23 @@ testcommond.create_derived_wallet("test11", password, "btc")
 # testcommond.create("test5", password=password, addresses="bcrt1qzm6y9j0zg9nnludkgtc0pvhet0sf76szjw7fjw")
 #testcommond.create("", password, seed='pool friend inherit unhappy quote dwarf drill suit coil advance cage debate')
 #testcommond.create(name, password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer')
+
+#testcommond.load_all_wallet()
 #testcommond.create_eth(name, password=password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer')
+
+#bala = testcommond.select_wallet(name)
 #test create hd wallet
 #testcommond.create_eth_wallet(name, password=password, seed='legend innocent climb kingdom first shoulder waste swap sleep comic ripple hip')
 #test create import private wallet
-#testcommond.load_all_wallet()
+testcommond.load_all_wallet()
 #testcommond.create(name, password=password, privkeys="p2wpkh:cRR5YkkGHTph8RsM1bQv7YSzY27hxBBhoJnVdHjGnuKntY7RgoGw")
 #testcommond.create(name, password=password, privkeys="e6841ceb170becade0a4aa3e157f08871192f9de1c35835de5e1b47fc167d27e")
 # keystore = {'address': 'ae2425eb0235c2df1ad39d91fc50978edb7bea83', 'crypto': {'cipher': 'aes-128-ctr', 'cipherparams': {'iv': 'c46726d14060bec5a7a0c44718cb6ef8'}, 'ciphertext': '2c0f6e49754d0471288302d5c1de8623b6e4440563f47af4f178534fd9489da6', 'kdf': 'pbkdf2', 'kdfparams': {'c': 1000000, 'dklen': 32, 'prf': 'hmac-sha256', 'salt': 'd3e21673bfcc20c3438c00c0200d2eba'}, 'mac': 'b4e6b735d0fd6ea709cd7ba4c040dbcfe2ad4cafe411dbce0ca2e4eef3c3d701'}, 'id': 'ee6f2e41-6435-4f14-b3ff-f765804ca872', 'version': 3}
 # testcommond.create_eth(name, password=password, keystores=keystore)
+#testcommond.create_eth(name, password=password, privkeys="0xe6841ceb170becade0a4aa3e157f08871192f9de1c35835de5e1b47fc167d27e")
+#keystore = {'address': 'ae2425eb0235c2df1ad39d91fc50978edb7bea83', 'crypto': {'cipher': 'aes-128-ctr', 'cipherparams': {'iv': 'c46726d14060bec5a7a0c44718cb6ef8'}, 'ciphertext': '2c0f6e49754d0471288302d5c1de8623b6e4440563f47af4f178534fd9489da6', 'kdf': 'pbkdf2', 'kdfparams': {'c': 1000000, 'dklen': 32, 'prf': 'hmac-sha256', 'salt': 'd3e21673bfcc20c3438c00c0200d2eba'}, 'mac': 'b4e6b735d0fd6ea709cd7ba4c040dbcfe2ad4cafe411dbce0ca2e4eef3c3d701'}, 'id': 'ee6f2e41-6435-4f14-b3ff-f765804ca872', 'version': 3}
+keystore = {"address":"b44dac9202092abc14cbeba1a3eb09a0da85e9cf","crypto":{"cipher":"aes-128-ctr","ciphertext":"967d40fe201db62c5d11779a0ec81dda2ccf91a5916ccd65d6b7eb4bb9aab2e6","cipherparams":{"iv":"59ffd740faf16119b9f741c70a12076b"},"kdf":"scrypt","kdfparams":{"dklen":32,"n":262144,"p":1,"r":8,"salt":"2459e794b08cf58d8d80dcdf101b7fe1958bd4bcb4281ec75b79fb7e6e9a7790"},"mac":"daa9ddfb8e66138d2929c7f0c65769fc31a70d0f6b35330b721e45f1e0d04ed5"},"id":"616132ab-7f4f-47df-b3ea-5e3d3b3f1110","version":3}
+testcommond.create_eth(name, password=password, keystores=keystore)
 #testcommond.create_eth(name, addresses='0x1796c64fBb9A3fd96e89B08110bb294992b686E1')
 # keystore_info = testcommond.export_keystore()
 # private_info = testcommond.export_private()
@@ -252,8 +261,8 @@ testcommond.create_derived_wallet("test11", password, "btc")
 data = testcommond.get_wallet_type(name)
 print("11111111111 %s type is %s" %(name, data))
 #time.sleep(5)
-testcommond.load_wallet(name)
-data = testcommond.select_wallet(name)
+#testcommond.load_wallet(name)
+data = testcommond.select_wallet('BTC-1')
 print("select data ============%s" %data)
 time.sleep(5)
 testcommond.set_use_change(False)
@@ -384,11 +393,11 @@ elif flag:
     #output_info = {'bcrt1qq53vkwezxvuueyzmgdncj0p78qahg355gd720p':'0.1'}
     #output_info = {'tb1qnuh3qc9g6lwlqqvmf7hg05pzlujhua9emdqdty4znjstr5886paq6htvpe':'0.005'}
     #output_info = {'bcrt1qnuh3qc9g6lwlqqvmf7hg05pzlujhua9emdqdty4znjstr5886paqhwp25r':'0.005'}
-    output_info = {'mtCj8m1EPxMiD3TLd39bR9ASTPxJ53dtbP': '0'}
+    output_info = {'mtCj8m1EPxMiD3TLd39bR9ASTPxJ53dtbP': '1'}
     #output_info = {'bcrt1qdvzlw6z7lwr5cgxtglculx3p52su6jw7mvfvmr':'5000'}
     all_output.append(output_info)
     #all_output.append(output_info1)
-    all_output = [{"mtCj8m1EPxMiD3TLd39bR9ASTPxJ53dtbP": "0"}]
+    all_output = [{"mtCj8m1EPxMiD3TLd39bR9ASTPxJ53dtbP": "1"}]
     output_str = json.dumps(all_output)
 
     message = 'test111'
@@ -468,7 +477,7 @@ elif flag:
     #sign_tx
     # print("sign tx = %s=========" % new_tx['new_tx'])
     # sign_tx = testcommond.sign_tx(new_tx['new_tx'], password)
-    sign_tx = testcommond.sign_tx(ret_list['tx'], password)
+    sign_tx = testcommond.sign_tx(ret_list['tx'], password=password)
     print("==========sign_tx = %s" %sign_tx)
     testinfo = testcommond.get_all_tx_list(None)
     print("testinfo  sign= %s------------" %testinfo)
@@ -512,7 +521,7 @@ elif flag:
     test_data = testcommond.pull_tx_infos()
     print("hHHHHHHahahaha----sync rbf data = %s------------" % test_data)
 
-    sign_tx = testcommond.sign_tx(new_tx['new_tx'], password)
+    sign_tx = testcommond.sign_tx(new_tx['new_tx'], path=None, password=password)
     # sign_tx = testcommond.sign_tx(ret_list['tx'], password)
     print("uncomfired ==========sign_tx = %s" % sign_tx)
     testinfo = testcommond.get_all_tx_list(None)
