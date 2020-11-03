@@ -56,6 +56,7 @@ from electrum import constants
 if "iOS_DATA" in os.environ:
     from .custom_objc import *
     from .ioscallback import *
+
 COIN_POS = 2
 ACCOUNT_POS = 3
 RECOVERY_DERIVAT_NUM = 20
@@ -2007,7 +2008,7 @@ class AndroidCommands(commands.Commands):
                 print("Update aborted on device.")
             except exceptions.TrezorException as e:
                 raise BaseException("Update failed: {}".format(e))
-
+    '''
     ####################################################
     ## app wallet
     def export_seed(self, password):
@@ -2271,8 +2272,6 @@ class AndroidCommands(commands.Commands):
         # if self.label_flag:
         #     self.label_plugin.load_wallet(self.wallet, None)
         return new_seed
-        '''
-
 
     def is_watch_only(self):
         '''
