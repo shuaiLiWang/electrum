@@ -1833,9 +1833,9 @@ class AndroidCommands(commands.Commands):
         # #status-erc = wallet.pywalib.web3.isChecksumAddress('0x6b175474e89094c44da98b954eedeac495271d0f')
         # #account = wallet.get_account(addrs[0], password)
         #wallet.add_contract_token('eos', PyWalib.get_web3().toChecksumAddress('0x20eacb346Fb7842c39caDa821534C1F9c0e26898'))
-        balance = self.pywalib.get_balance(PyWalib.get_web3().toChecksumAddress(addrs[0]), wallet.get_contract_token("eos"))
-        all_balance = wallet.get_all_balance(checksum_from_address)
-        checksum_to_address = self.pywalib.web3.toChecksumAddress("0x28c5841c18fd74c7c6a09c6df9c91139c202e39a")
+        ##balance = self.pywalib.get_balance(PyWalib.get_web3().toChecksumAddress(addrs[0]), wallet.get_contract_token("eos"))
+        #all_balance = wallet.get_all_balance(checksum_from_address)
+        #checksum_to_address = self.pywalib.web3.toChecksumAddress("0x28c5841c18fd74c7c6a09c6df9c91139c202e39a")
         #con_addr = wallet.get_contract_token("eos")
         #send = self.pywalib.send_transaction(wallet.get_account(addrs[0], password), addrs[0],
         # #                                      "0x28c5841c18fd74c7c6a09c6df9c91139c202e39a", 1)
