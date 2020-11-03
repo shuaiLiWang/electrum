@@ -34,6 +34,8 @@ testcommond.set_syn_server(True)
 name = 'hahahahhahh999' #software wallet create seed:rocket omit review divert bomb brief mushroom family fatal limb goose lion
 #name = "test_hide_wallet"
 password = "111111"
+
+data = testcommond.get_eth_exchange_currency(50)
 #password = "None"
 #test hardware
 #testcommond.get_xpub_from_hw()
@@ -187,7 +189,7 @@ password = "111111"
 #testcommond.create(name, password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer')
 #testcommond.load_all_wallet()
 #testcommond.create_eth(name, password=password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer')
-
+time.sleep(100000)
 #bala = testcommond.select_wallet(name)
 #test create hd wallet
 #testcommond.create_eth_wallet(name, password=password, seed='legend innocent climb kingdom first shoulder waste swap sleep comic ripple hip')

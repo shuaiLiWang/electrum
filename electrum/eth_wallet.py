@@ -171,10 +171,18 @@ class Abstract_Eth_Wallet(ABC):
 
     def get_all_balance(self, wallet_address):
         eth_info = {}
+        last_price = PyWalib.get_currency("ETH", "BTC")
         eth, balance = PyWalib.get_balance(wallet_address)
-        eth_info['eth'] = balance
+        balance_info = {}
+        balance_info['eth'] = balance
+        balance_info['fiat'] = balance * last_price
+        eth_info['eth'] = balance_info
         for symbol, contract in self.contacts.items():
             symbol, balance = PyWalib.get_balance(wallet_address, contract)
+            last_price = PyWalib.get_currency(symbol, "BTC")
+            balance_info = {}
+            balance_info[symbol] = balance
+            balance_info['fiat'] = balance * last_price
             eth_info[symbol] = balance
         return eth_info
 

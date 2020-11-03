@@ -20,6 +20,7 @@ INFURA_PROJECT_ID = "f001ce716b6e4a33a557f74df6fe8eff"
 ROUND_DIGITS = 3
 DEFAULT_GAS_PRICE_GWEI = 4
 DEFAULT_GAS_LIMIT = 25000
+GWEI_BASE = 1000000000
 DEFAULT_GAS_SPEED = 1
 KEYSTORE_DIR_PREFIX = expanduser("~")
 # default pyethapp keystore path
@@ -165,7 +166,6 @@ class PyWalib:
         self.chain_id = chain_id
         self.provider = HTTPProviderFactory.create(self.chain_id)
         PyWalib.web3 = Web3(self.provider)
-        # #self.web3 = Web3(HTTPProvider("https://ropsten.infura.io/v3/57caa86e6f454063b13d717be8cc3408"))
         # self.web3 =f Web3(HTTPProvider("https://ropsten.infura.io/v3/f001ce716b6e4a33a557f74df6fe8eff"))
         # #self.web3 = Web3(HTTPProvider("https://mainnet.infura.io/v3/57caa86e6f454063b13d717be8cc3408"))
 
@@ -173,15 +173,24 @@ class PyWalib:
     def get_web3():
         return PyWalib.web3
 
+    @staticmethod
+    def get_currency(from_cur, to_cur):
+        try:
+            response = requests.get('https://api.binance.com/api/v1/ticker/24hr?symbol='+from_cur.upper()+to_cur.upper())
+            obj = response.json()
+            return obj['lastPrice']
+        except BaseException as ex:
+            raise ex
+
     def get_gas_price(self):
         try:
             response = requests.get('https://www.gasnow.org/api/v3/gas/price?utm_source=onekey', headers=headers)
             obj = response.json()
-            out = dict{}
+            out = dict()
             if obj['code'] == 200:
                 for type, wei in obj['data'].items():
-                    fee_info = dict{}
-                    fee_info['price'] = self.web3.fromWei(wei, "ether")
+                    fee_info = dict()
+                    fee_info['price'] = int(self.web3.fromWei(wei, "gwei"))
                     if type == "rapid":
                         fee_info['time'] = "15 Seconds"
                     elif type == "fast":
@@ -195,26 +204,7 @@ class PyWalib:
         except BaseException as ex:
             raise ex
 
-    # def get_default_price(self):
-    #     return self.web3.eth.gasPrice * DEFAULT_GAS_SPEED
-
-    # def get_fee(self, speed=1, gas_limit=DEFAULT_GAS_LIMIT, gas_price=None):
-    #     print("TODO....TIME SUPPORT")
-    #     print("TODO....FAIT SUPPORT")
-    #     if gas_price is not None:
-    #         transaction_const_wei = gas_limit * speed * gas_price
-    #     else:
-    #         transaction_const_wei = gas_limit * speed * self.web3.eth.gasPrice
-    #     return self.web3.fromWei(transaction_const_wei, 'ether')
-    #
-    # def get_show_fee(self):
-    #     out = dict()
-    #     out['standard'] = self.get_fee(speed=1.5)
-    #     out['low'] = self.get_fee(speed=1)
-    #     out['fast'] = self.get_fee(speed=2)
-
     def send_transaction(self, account, from_address, to_address, value, contract=None, gasprice = DEFAULT_GAS_PRICE_GWEI * (10 ** 9)):
-    #def send_transaction(self, account, from_address, to_address, value, contract=None, gasprice, gas_price_speed=20):
         transaction = Eth_Transaction(
             account=account,
             w3=self.web3
@@ -230,16 +220,17 @@ class PyWalib:
             tx_dict = transaction.build_transaction(
                 to_address=self.web3.toChecksumAddress(to_address),
                 value=self.web3.toWei(value, "ether"),
-                gas=25000,  # fixed gasLimit to transfer ether from one EOA to another EOA (doesn't include contracts)
+                gas=DEFAULT_GAS_LIMIT,  # fixed gasLimit to transfer ether from one EOA to another EOA (doesn't include contracts)
                 #gas_price=self.web3.eth.gasPrice * gas_price_speed,
-                gas_price = gasprice,
+                gas_price = self.web3.toWei(gasprice, "gwei"),
                 # be careful about sending more transactions in row, nonce will be duplicated
                 nonce=self.web3.eth.getTransactionCount(self.web3.toChecksumAddress(from_address)),
-                chain_id="0x539"
+                chain_id=self.chain_id.value
             )
         else:  # create ERC20 contract transaction dictionary
             erc20_decimals = contract.get_decimals()
-            token_amount = int(float(value) * (10 ** erc20_decimals))
+            # token_amount = int(float(value) * (10 ** erc20_decimals))
+            token_amount = int(float(value))
             data_for_contract = Eth_Transaction.get_tx_erc20_data_field(to_address, token_amount)
 
             # check whether there is sufficient ERC20 token balance
@@ -247,21 +238,22 @@ class PyWalib:
             if float(value) > erc20_balance:
                 raise InsufficientERC20FundsException()
 
+            addr = self.web3.toChecksumAddress(contract.get_address())
             #calculate how much gas I need, unused gas is returned to the wallet
-            estimated_gas = self.pywalib.web3.eth.estimateGas(
+            estimated_gas = self.web3.eth.estimateGas(
                 {'to': contract.get_address(),
-                 'from': from_address,
+                 'from': self.web3.toChecksumAddress(from_address),
                  'data': data_for_contract
                  })
 
             tx_dict = transaction.build_transaction(
-                to_address=contract.get_address,  # receiver address is defined in data field for this contract
+                to_address=contract.get_address(),  # receiver address is defined in data field for this contract
                 value=0,  # amount of tokens to send is defined in data field for contract
                 gas=estimated_gas,
-                gas_price=gasprice,
+                gas_price=self.web3.toWei(gasprice, "gwei"),
                 # be careful about sending more transactions in row, nonce will be duplicated
                 nonce=self.web3.eth.getTransactionCount(self.web3.toChecksumAddress(from_address)),
-                chain_id="0x539",
+                chain_id=self.chain_id.value,
                 data=data_for_contract
             )
 
@@ -325,7 +317,7 @@ class PyWalib:
             eth_balance = PyWalib.get_web3().fromWei(PyWalib.get_web3().eth.getBalance(wallet_address), 'ether')
             return "eth", eth_balance
         else:
-            erc_balance = PyWalib.get_web3().fromWei(contract.get_balance(wallet_address))
+            erc_balance = contract.get_balance(wallet_address)
             return contract.get_symbol(), erc_balance
 
     # def get_balance_web3(self, address):
