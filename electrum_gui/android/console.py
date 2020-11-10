@@ -2275,7 +2275,7 @@ class AndroidCommands(commands.Commands):
         # if self.label_flag:
         #     self.label_plugin.load_wallet(self.wallet, None)
         return new_seed
-
+        '''
 
     def is_watch_only(self):
         '''
