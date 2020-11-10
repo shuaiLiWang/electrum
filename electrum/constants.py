@@ -159,16 +159,19 @@ net = BitcoinMainnet
 def set_simnet():
     global net
     net = BitcoinSimnet
+    return ""
 
 def set_mainnet():
     global net
     net = BitcoinMainnet
+    return ""
 
 def set_testnet():
     global net
     net = BitcoinTestnet
-
+    return ""
 
 def set_regtest():
     global net
     net = BitcoinRegtest
+    return ""

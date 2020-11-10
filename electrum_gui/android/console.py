@@ -2068,14 +2068,16 @@ class AndroidCommands(commands.Commands):
     def get_backup_info(self):
         '''
         Get backup status
-        :return: True/False as bool
+        :return: "1"/"0" as str
         '''
+        backup_flag = "1"
         try:
             if self.wallet.has_seed():
-                return self.backup_info[self.wallet.keystore.seed]
+                if not self.backup_info.__contains__(self.wallet.keystore.seed):
+                    backup_flag = "0"
         except BaseException as e:
             raise e
-        return ""
+        return backup_flag
 
     def delete_backup_info(self):
         '''
@@ -2619,7 +2621,11 @@ class AndroidCommands(commands.Commands):
         """Create or restore a new wallet"""
         print("CREATE in....name = %s" % name)
         try:
-            self.check_file_exist(password=password, seed=seed, master=master, addresses=addresses, privkeys=privkeys)
+            check_flag = True
+            if bip39_derivation is not None and int(bip39_derivation.split('/')[ACCOUNT_POS].split('\'')[0]) != 0:
+                check_flag = False
+            if check_flag:
+                self.check_file_exist(password=password, seed=seed, master=master, addresses=addresses, privkeys=privkeys)
             if not hd:
                 if addresses is None:
                     self.check_password(password)
