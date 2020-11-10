@@ -144,6 +144,12 @@ class TrezorClientBase(HardwareClientBase, Logger):
                          fingerprint=self.i4b(node.fingerprint),
                          child_number=self.i4b(node.child_num)).to_xpub()
 
+    ####eth api
+    def get_eth_xpub(self, bip32_path, creating=False):
+        address_n = parse_path(bip32_path)
+        with self.run_flow(creating_wallet=creating):
+            return trezorlib.ethereum.get_public_node(self.client, address_n, show_display=True).xpub
+    ####
     def backup(self) -> str:
         if type == 1:
             msg = ("Confirm backup your {} device")
@@ -252,6 +258,14 @@ class TrezorClientBase(HardwareClientBase, Logger):
                 script_type=script_type,
                 multisig=multisig)
 
+    def sign_eth_message(self, address_str, message):
+        address_n = parse_path(address_str)
+        with self.run_flow():
+            return trezorlib.ethereum.sign_message(
+                self.client,
+                address_n,
+                message)
+
     def sign_message(self, address_str, message):
         coin_name = self.plugin.get_coin_name()
         address_n = parse_path(address_str)
@@ -288,6 +302,10 @@ class TrezorClientBase(HardwareClientBase, Logger):
     def sign_tx(self, *args, **kwargs):
         with self.run_flow():
             return trezorlib.btc.sign_tx(self.client, *args, **kwargs)
+
+    def sign_eth_tx(self, **kwargs):
+        with self.run_flow():
+            return trezorlib.ethereum.sign_tx(self.client, **kwargs)
 
     def reset_device(self, *args, **kwargs):
         with self.run_flow():

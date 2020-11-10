@@ -34,15 +34,16 @@ from electrum.network import Network, TxBroadcastError, BestEffortRequestFailed
 from electrum import ecc
 from electrum.pywalib import InvalidPasswordException
 from electrum.pywalib import ChainID, PyWalib, ERC20NotExistsException, InvalidValueException, InvalidAddress, InsufficientFundsException
-# from trezorlib.customer_ui import CustomerUI
-# from trezorlib import (
-#     btc,
-#     exceptions,
-#     firmware,
-#     protobuf,
-#     messages,
-#     device,
-# )
+from electrum.keystore import Hardware_KeyStore
+from trezorlib.customer_ui import CustomerUI
+from trezorlib import (
+    btc,
+    exceptions,
+    firmware,
+    protobuf,
+    messages,
+    device,
+)
 from trezorlib.cli import trezorctl
 from electrum.wallet_db import WalletDB
 from enum import Enum
@@ -165,7 +166,7 @@ class AndroidCommands(commands.Commands):
             self.config.set_key("ra_str", ran_str)
         self.android_id = android_id + ran_str
         self.lock = threading.RLock()
-        self.update_local_wallet_info()
+        self.init_local_wallet_info()
         if self.network:
             interests = ['wallet_updated', 'network_updated', 'blockchain_updated',
                          'status', 'new_transaction', 'verified', 'set_server_status']
@@ -210,7 +211,16 @@ class AndroidCommands(commands.Commands):
         self.asyncio_loop.call_soon_threadsafe(self._stop_loop.set_result, 1)
         self._loop_thread.join(timeout=1)
 
-    def update_local_wallet_info(self):
+    def update_local_wallet_info(self, name, wallet_type, keystores=''):
+        wallet_info = {}
+        wallet_info['type'] = wallet_type
+        wallet_info['time'] = time.time()
+        wallet_info['xpubs'] = keystores
+        wallet_info['seed'] = ""
+        self.local_wallet_info[name] = wallet_info
+        self.config.set_key('all_wallet_type_info', self.local_wallet_info)
+
+    def init_local_wallet_info(self):
         try:
             self.local_wallet_info = self.config.get("all_wallet_type_info", {})
             new_wallet_info = {}
@@ -228,6 +238,7 @@ class AndroidCommands(commands.Commands):
             self.config.set_key('all_wallet_type_info', self.local_wallet_info)
         except BaseException as e:
             raise e
+
 
     def is_valiad_xpub(self, xpub):
         try:
@@ -578,13 +589,7 @@ class AndroidCommands(commands.Commands):
                 wallet_type = "btc-hw-derived-%s-%s" % (self.m, self.n)
 
             if not hide_type:
-                wallet_info = {}
-                wallet_info['type'] = wallet_type
-                wallet_info['time'] = time.time()
-                wallet_info['xpubs'] = keystores
-                wallet_info['seed'] = ""
-                self.local_wallet_info[name] = wallet_info
-                self.config.set_key('all_wallet_type_info', self.local_wallet_info)
+                self.update_local_wallet_info(name, wallet_type, keystores)
             # if self.wallet:
             #     self.close_wallet()
             self.wallet = wallet
@@ -1351,15 +1356,22 @@ class AndroidCommands(commands.Commands):
 
     ###############
     def sign_eth_tx(self, to_addr, value, path='android_usb', password=None, symbol=None):
-        checksum_to_address = self.pywalib.web3.toChecksumAddress(self.wallet.get_addresses()[0])
+        checksum_from_address = self.pywalib.web3.toChecksumAddress(self.wallet.get_addresses()[0])
         if symbol is None:
-            send = self.pywalib.send_transaction(self.wallet.get_account(checksum_to_address, password), checksum_to_address,
-                                              to_addr, value)
+            tx_dict = self.pywalib.get_transaction(checksum_from_address, to_addr, value)
         else:
             con_addr = self.wallet.get_contract_token(symbol)
-            send = self.pywalib.send_transaction(self.wallet.get_account(checksum_to_address, password), checksum_to_address,
-                                             to_addr, value,
-                                             contract=con_addr)
+            tx_dict = self.pywalib.get_transaction(checksum_from_address, to_addr, value, contract=con_addr)
+        if isinstance(self.wallet.get_keystore(), Hardware_KeyStore):
+            if path:
+                client = self.get_client(path=path)
+                address_n = self.wallet.get_keystore().get_derivation_prefix()
+
+                (v, r, s) = client.sign_eth_tx(address_n=address_n, nonce=tx_dict.nonce, gas_price=tx_dict.gas_price, gas=tx_dict.gas,
+                                   value=tx_dict.value, to=tx_dict.to_address, chain_id=tx_dict.chain_id)
+                return self.pywalib.serialize_and_send_tx(tx_dict, vrs=(v,r,s))
+        else:
+            return self.pywalib.sign_and_send_tx(self.wallet.get_account(checksum_from_address, password), tx_dict)
 
     def sign_tx(self, tx, path='android_usb', password=None):
         try:
@@ -1383,7 +1395,7 @@ class AndroidCommands(commands.Commands):
             return self.get_tx_info_from_raw(sign_tx)
         except Exception as e:
             raise BaseException(e)
-    '''
+
     ##connection with terzorlib#########################
     def hardware_verify(self, msg, path='android_usb'):
         client = self.get_client(path=path)
@@ -1547,7 +1559,7 @@ class AndroidCommands(commands.Commands):
         with self.lock:
             client = self.get_client(path=path, clean=True)
         return json.dumps(protobuf.to_dict(client.features))
-
+    
     def get_xpub_from_hw(self, path='android_usb', _type='p2wsh', is_creating=True, account_id=None):
         client = self.get_client(path=path)
         if account_id is None:
@@ -1566,7 +1578,38 @@ class AndroidCommands(commands.Commands):
         except Exception as e:
             raise BaseException(e)
         return xpub
-    
+
+    def create_eth_wallet_by_hw(self, name, password=None, path="android_usb", account_id=None, hd=False):
+        path = self._wallet_path(name)
+        if exists(path):
+            raise BaseException("path is exist")
+        xpub = self.get_eth_xpub(path, account_id=account_id)
+        storage = WalletStorage(path)
+        db = WalletDB('', manual_upgrades=False)
+        ks = MutiBase.get_eth_keystore(xpub)
+        db.put('keystore', ks.dump())
+        wallet = Standard_Eth_Wallet(db, storage, config=self.config)
+        wallet.update_password(old_pw=None, new_pw=password, str_pw=self.android_id, encrypt_storage=True)
+        wallet.save_db()
+        self.daemon.add_wallet(wallet)
+        wallet_type = 'eth-standard-hw'
+        if hd:
+            self.eth_hd_wallet = wallet
+            # self.check_pw_wallet = self.btc_hd_wallet
+            wallet_type = 'eth-hd-standard-hw'
+        self.update_local_wallet_info(name, wallet_type)
+
+    def get_eth_xpub(self, path="android_usb", account_id=None):
+        client = self.get_client(path=path)
+        if account_id is None:
+            account_id = 0
+        derivation = bip44_eth_derivation(account_id, bip43_purpose=44)
+        try:
+            xpub = client.get_eth_xpub(derivation)
+        except Exception as e:
+            raise BaseException(e)
+        return xpub
+        
     def create_btc_hw_derived_wallet(self, path='android_usb', _type='p2pkh', is_creating=True):
         if len(self.btc_derived_account_id) == 0:
             raise BaseException("Support up to 20 derived wallets")
@@ -1657,7 +1700,7 @@ class AndroidCommands(commands.Commands):
                 print("Update aborted on device.")
             except exceptions.TrezorException as e:
                 raise BaseException("Update failed: {}".format(e))
-    '''
+
     ####################################################
     ## app wallet
     def export_seed(self, password):
@@ -1842,13 +1885,8 @@ class AndroidCommands(commands.Commands):
         #send = self.pywalib.send_transaction(wallet.get_account(addrs[0], password), addrs[0], "0x28c5841c18fd74c7c6a09c6df9c91139c202e39a", 1, contract=con_addr)
 
         ####test
-        wallet_info = {}
-        wallet_info['type'] = 'eth-hd-standard' if hd and seed is not None else "eth-standard"
-        wallet_info['time'] = time.time()
-        wallet_info['xpubs'] = ''
-        wallet_info['seed'] = ''
-        self.local_wallet_info[name] = wallet_info
-        self.config.set_key('all_wallet_type_info', self.local_wallet_info)
+        wallet_type = 'eth-hd-standard' if hd and seed is not None else "eth-standard"
+        self.update_local_wallet_info(name, wallet_type)
         # if self.label_flag:
         #     self.label_plugin.load_wallet(self.wallet, None)
         return new_seed
@@ -1904,14 +1942,9 @@ class AndroidCommands(commands.Commands):
                         recovery_btc_num.append(recovery_info['account_id'])
                     #self.update_account_id_list(self.recovery_wallets.get(name).account_id)
                     ### add info to config
-                    wallet_info = {}
-                    wallet_info['type'] = '%s-hw-derived-%s-%s' %(coin_flag, wallet.m, wallet.n) if hw else ('%s-derived-standard' %coin_flag)
-                    wallet_info['time'] = time.time()
-                    wallet_info['xpubs'] = [wallet.get_keystore().xpub]
-                    wallet_info['seed'] = ''
-                    #print(f"crate()-----------{wallet.get_keystore().xpub}")
-                    self.local_wallet_info[name] = wallet_info
-                    self.config.set_key('all_wallet_type_info', self.local_wallet_info)
+                    wallet_type = '%s-hw-derived-%s-%s' %(coin_flag, wallet.m, wallet.n) if hw else ('%s-derived-standard' %coin_flag)
+                    self.update_local_wallet_info(name, wallet_type, keystores=[wallet.get_keystore().xpub])
+
         self.recovery_wallets.clear()
         self.btc_derived_account_id.clear()
         self.eth_derived_account_id.clear()
@@ -2169,14 +2202,7 @@ class AndroidCommands(commands.Commands):
         wallet.start_network(self.daemon.network)
         wallet.save_db()
         self.daemon.add_wallet(wallet)
-        wallet_info = {}
-        wallet_info['type'] = wallet_type
-        wallet_info['time'] = time.time()
-        wallet_info['xpubs'] = wallet.get_keystore().xpub
-        wallet_info['seed'] = ""
-        print(f"crate()-----------{wallet.get_keystore().xpub}")
-        self.local_wallet_info[name] = wallet_info
-        self.config.set_key('all_wallet_type_info', self.local_wallet_info)
+        self.update_local_wallet_info(name, wallet_type, keystores=wallet.get_keystore().xpub)
         # if self.label_flag:
         #     self.label_plugin.load_wallet(self.wallet, None)
         return new_seed

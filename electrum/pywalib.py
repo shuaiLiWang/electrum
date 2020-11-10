@@ -204,25 +204,19 @@ class PyWalib:
         except BaseException as ex:
             raise ex
 
-    def send_transaction(self, account, from_address, to_address, value, contract=None, gasprice = DEFAULT_GAS_PRICE_GWEI * (10 ** 9)):
-        transaction = Eth_Transaction(
-            account=account,
-            w3=self.web3
-        )
-
-        # check if value to send is possible to convert to the number
+    def get_transaction(self, from_address, to_address, value, contract=None, gasprice = DEFAULT_GAS_PRICE_GWEI * (10 ** 9)):
         try:
             float(value)
         except ValueError:
             raise InvalidValueException()
 
         if contract is None:  # create ETH transaction dictionary
-            tx_dict = transaction.build_transaction(
+            tx_dict = Eth_Transaction.build_transaction(
                 to_address=self.web3.toChecksumAddress(to_address),
                 value=self.web3.toWei(value, "ether"),
                 gas=DEFAULT_GAS_LIMIT,  # fixed gasLimit to transfer ether from one EOA to another EOA (doesn't include contracts)
                 #gas_price=self.web3.eth.gasPrice * gas_price_speed,
-                gas_price = self.web3.toWei(gasprice, "gwei"),
+                gas_price=self.web3.toWei(gasprice, "gwei"),
                 # be careful about sending more transactions in row, nonce will be duplicated
                 nonce=self.web3.eth.getTransactionCount(self.web3.toChecksumAddress(from_address)),
                 chain_id=self.chain_id.value
@@ -246,7 +240,7 @@ class PyWalib:
                  'data': data_for_contract
                  })
 
-            tx_dict = transaction.build_transaction(
+            tx_dict = Eth_Transaction.build_transaction(
                 to_address=contract.get_address(),  # receiver address is defined in data field for this contract
                 value=0,  # amount of tokens to send is defined in data field for contract
                 gas=estimated_gas,
@@ -272,9 +266,10 @@ class PyWalib:
         else:
             if transaction_const_eth > balance:
                 raise InsufficientFundsException()
+        return tx_dict
 
-        # send transaction
-        tx_hash = transaction.send_transaction(tx_dict)
+    def sign_and_send_tx(self, account, tx_dict):
+        tx_hash = Eth_Transaction.send_transaction(tx_dict)
 
         print('Pending', end='', flush=True)
         while True:
@@ -287,7 +282,105 @@ class PyWalib:
                 print('\nTransaction mined!')
                 break
 
-        return tx_hash, transaction_const_eth
+        return tx_hash
+
+    def serialize_and_send_tx(self, tx_dict, vrs):
+        tx_hash = Eth_Transaction.serialize_and_send_tx(self.web3, tx_dict, vrs)
+        print('Pending', end='', flush=True)
+        while True:
+            tx_receipt = self.web3.eth.getTransactionReceipt(tx_hash)
+            if tx_receipt is None:
+                print('.', end='', flush=True)
+                import time
+
+                time.sleep(1)
+            else:
+                print('\nTransaction mined!')
+                break
+    # def send_transaction(self, account, from_address, to_address, value, contract=None, gasprice = DEFAULT_GAS_PRICE_GWEI * (10 ** 9)):
+    #     transaction = Eth_Transaction(
+    #         account=account,
+    #         w3=self.web3
+    #     )
+    #
+    #     # check if value to send is possible to convert to the number
+    #     try:
+    #         float(value)
+    #     except ValueError:
+    #         raise InvalidValueException()
+    #
+    #     if contract is None:  # create ETH transaction dictionary
+    #         tx_dict = transaction.build_transaction(
+    #             to_address=self.web3.toChecksumAddress(to_address),
+    #             value=self.web3.toWei(value, "ether"),
+    #             gas=DEFAULT_GAS_LIMIT,  # fixed gasLimit to transfer ether from one EOA to another EOA (doesn't include contracts)
+    #             #gas_price=self.web3.eth.gasPrice * gas_price_speed,
+    #             gas_price=self.web3.toWei(gasprice, "gwei"),
+    #             # be careful about sending more transactions in row, nonce will be duplicated
+    #             nonce=self.web3.eth.getTransactionCount(self.web3.toChecksumAddress(from_address)),
+    #             chain_id=self.chain_id.value
+    #         )
+    #     else:  # create ERC20 contract transaction dictionary
+    #         erc20_decimals = contract.get_decimals()
+    #         # token_amount = int(float(value) * (10 ** erc20_decimals))
+    #         token_amount = int(float(value))
+    #         data_for_contract = Eth_Transaction.get_tx_erc20_data_field(to_address, token_amount)
+    #
+    #         # check whether there is sufficient ERC20 token balance
+    #         _, erc20_balance = self.get_balance(self.web3.toChecksumAddress(from_address), contract)
+    #         if float(value) > erc20_balance:
+    #             raise InsufficientERC20FundsException()
+    #
+    #         addr = self.web3.toChecksumAddress(contract.get_address())
+    #         #calculate how much gas I need, unused gas is returned to the wallet
+    #         estimated_gas = self.web3.eth.estimateGas(
+    #             {'to': contract.get_address(),
+    #              'from': self.web3.toChecksumAddress(from_address),
+    #              'data': data_for_contract
+    #              })
+    #
+    #         tx_dict = transaction.build_transaction(
+    #             to_address=contract.get_address(),  # receiver address is defined in data field for this contract
+    #             value=0,  # amount of tokens to send is defined in data field for contract
+    #             gas=estimated_gas,
+    #             gas_price=self.web3.toWei(gasprice, "gwei"),
+    #             # be careful about sending more transactions in row, nonce will be duplicated
+    #             nonce=self.web3.eth.getTransactionCount(self.web3.toChecksumAddress(from_address)),
+    #             chain_id=self.chain_id.value,
+    #             data=data_for_contract
+    #         )
+    #
+    #     # check whether to address is valid checksum address
+    #     if not self.web3.isChecksumAddress(self.web3.toChecksumAddress(to_address)):
+    #         raise InvalidAddress()
+    #
+    #     # check whether there is sufficient eth balance for this transaction
+    #     #_, balance = self.get_balance(from_address)
+    #     balance = self.web3.fromWei(self.web3.eth.getBalance(self.web3.toChecksumAddress(from_address)), 'ether')
+    #     transaction_const_wei = tx_dict['gas'] * tx_dict['gasPrice']
+    #     transaction_const_eth = self.web3.fromWei(transaction_const_wei, 'ether')
+    #     if contract is None:
+    #         if (transaction_const_eth + Decimal(value)) > balance:
+    #             raise InsufficientFundsException()
+    #     else:
+    #         if transaction_const_eth > balance:
+    #             raise InsufficientFundsException()
+    #
+    #     # send transaction
+    #     tx_hash = transaction.send_transaction(tx_dict)
+    #
+    #     print('Pending', end='', flush=True)
+    #     while True:
+    #         tx_receipt = self.web3.eth.getTransactionReceipt(tx_hash)
+    #         if tx_receipt is None:
+    #             print('.', end='', flush=True)
+    #             import time
+    #             time.sleep(1)
+    #         else:
+    #             print('\nTransaction mined!')
+    #             break
+    #
+    #     return tx_hash, transaction_const_eth
 
     # @staticmethod
     # def get_balance(address, chain_id=ChainID.MAINNET):
@@ -439,95 +532,8 @@ class PyWalib:
     #         self.handle_web3_exception(e)
     #     return tx_hash
 
-    # @staticmethod
-    # def deleted_account_dir(keystore_dir):
-    #     """
-    #     Given a `keystore_dir`, returns the corresponding
-    #     `deleted_keystore_dir`.
-    #     >>> keystore_dir = '/tmp/keystore'
-    #     >>> PyWalib.deleted_account_dir(keystore_dir)
-    #     u'/tmp/keystore-deleted'
-    #     >>> keystore_dir = '/tmp/keystore/'
-    #     >>> PyWalib.deleted_account_dir(keystore_dir)
-    #     u'/tmp/keystore-deleted'
-    #     """
-    #     keystore_dir = keystore_dir.rstrip('/')
-    #     keystore_dir_name = os.path.basename(keystore_dir)
-    #     deleted_keystore_dir_name = "%s-deleted" % (keystore_dir_name)
-    #     deleted_keystore_dir = os.path.join(
-    #         os.path.dirname(keystore_dir),
-    #         deleted_keystore_dir_name)
-    #     return deleted_keystore_dir
 
-    # @staticmethod
-    # def _get_pbkdf2_iterations(security_ratio=None):
-    #     """
-    #     Returns the work-factor/iterations based on the security_ratio.
-    #     """
-    #     iterations = None
-    #     min_security_ratio = 1
-    #     max_security_ratio = 100
-    #     if security_ratio is not None:
-    #         if not min_security_ratio <= security_ratio <= max_security_ratio:
-    #             raise ValueError(
-    #                 f'security_ratio must be within {min_security_ratio} and '
-    #                 f'{max_security_ratio}')
-    #         kdf = 'pbkdf2'
-    #         default_iterations = keyfile.get_default_work_factor_for_kdf(kdf)
-    #         iterations = (default_iterations * security_ratio) / 100.0
-    #         iterations = math.ceil(iterations)
-    #     return iterations
 
-    # # TODO: update docstring
-    # def new_account(self, password, security_ratio=None):
-    #     """
-    #     Creates an account on the disk and returns it.
-    #     security_ratio is a ratio of the default PBKDF2 iterations.
-    #     Ranging from 1 to 100 means 100% of the iterations.
-    #     """
-    #     iterations = self._get_pbkdf2_iterations(security_ratio)
-    #     account = self.account_utils.new_account(
-    #         password=password, iterations=iterations)
-    #     return account
 
-    #def add_account(self, account):
-    #    self.account_utils.add_account(account)
 
-    # def delete_account(self, account):
-    #     """
-    #     Deletes the given `account` from the `keystore_dir` directory.
-    #     In fact, moves it to another location; another directory at the same
-    #     level.
-    #     """
-    #     self.account_utils.delete_account(account)
-    #
-    # def update_account_password(
-    #         self, account, new_password, current_password=None):
-    #     """
-    #     The current_password is optional if the account is already unlocked.
-    #     """
-    #     self.account_utils.update_account_password(
-    #         account, new_password, current_password)
 
-    # @staticmethod
-    # def get_default_keystore_path():
-    #     """
-    #     Returns the keystore path, which is the same as the default pyethapp
-    #     one.
-    #     """
-    #     keystore_dir = os.path.join(KEYSTORE_DIR_PREFIX, KEYSTORE_DIR_SUFFIX)
-    #     return keystore_dir
-
-    # def get_account_list(self):
-    #     """
-    #     Returns the Account list.
-    #     """
-    #     accounts = self.account_utils.get_account_list()
-    #     return accounts
-    #
-    # def get_main_account(self):
-    #     """
-    #     Returns the main Account.
-    #     """
-    #     account = self.get_account_list()[0]
-    #     return account

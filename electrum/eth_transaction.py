@@ -1,5 +1,10 @@
+from hexbytes import HexBytes
 from eth_account import (
     Account,
+)
+from eth_account.internal.transactions import (
+    encode_transaction,
+    serializable_unsigned_transaction_from_dict,
 )
 from eth_utils import (
     to_normalized_address,
@@ -52,7 +57,8 @@ class Eth_Transaction:
 
         return transaction
 
-    def send_transaction(self, transaction):
+    @staticmethod
+    def send_transaction(account, w3, transaction):
         """
         Signs and send transaction
         :param transaction: transaction dict
@@ -60,10 +66,27 @@ class Eth_Transaction:
         """
         print('transaction: ' + str(transaction))
 
-        signed_tx = Account.signTransaction(transaction, self.account.privateKey)
-        tx_hash = self.w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+        signed_tx = Account.signTransaction(transaction, account.privateKey)
+        tx_hash = w3.eth.sendRawTransaction(signed_tx.rawTransaction)
 
         return tx_hash
+
+    @staticmethod
+    def serialize_and_send_tx(self, w3, transaction_dict, vrs=()):
+        unsigned_transaction = serializable_unsigned_transaction_from_dict(transaction_dict)
+        #transaction_hash = unsigned_transaction.hash()
+        encoded_transaction = encode_transaction(unsigned_transaction, vrs=vrs)
+        #transaction_hash = keccak(encoded_transaction)
+
+        tx_hash = w3.eth.sendRawTransaction(HexBytes(encoded_transaction))
+        return tx_hash
+        # return AttributeDict({
+        #     'rawTransaction': HexBytes(encoded_transaction),
+        #     'hash': HexBytes(transaction_hash),
+        #     'r': r,
+        #     's': s,
+        #     'v': v,
+        # })
 
     @staticmethod
     def get_tx_erc20_data_field(receiver, value):
