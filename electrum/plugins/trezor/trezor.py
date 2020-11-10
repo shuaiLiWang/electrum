@@ -363,6 +363,12 @@ class TrezorPlugin(HW_PluginBase):
             else:
                 return False
 
+    def sign_eth_transaction(self, **kwargs):
+        return self.client.sign_eth_tx(**kwargs)
+
+    def sign_eth_message(self, address_n, message):
+        return self.client.sign_eth_message(address_n=address_n, message=message)
+
     def sign_transaction(self, keystore, tx: PartialTransaction, prev_tx):
         prev_tx = {bfh(txhash): self.electrum_tx_to_txtype(tx) for txhash, tx in prev_tx.items()}
         if not self.client:

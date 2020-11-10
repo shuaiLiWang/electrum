@@ -30,7 +30,7 @@ from . import bitcoin
 from . import keystore
 from . import mnemonic
 from .bip32 import is_bip32_derivation, xpub_type, normalize_bip32_derivation, BIP32Node, root_fp_and_der_prefix_from_xkey
-from .keystore import purpose48_derivation, bip44_derivation
+from .keystore import purpose48_derivation, bip44_derivation, bip44_eth_derivation
 from .wallet import (Imported_Wallet, Standard_Wallet, Multisig_Wallet,
                      wallet_types, Wallet, Abstract_Wallet)
 from .storage import (WalletStorage,
@@ -81,6 +81,30 @@ class MutiBase(Logger):
             self.m = m
         self.path = path
         print("=================set_multi_wallet_info ok....")
+
+    @staticmethod
+    def get_eth_keystore(xpub, device_id=''):
+        from .keystore import hardware_keystore
+        print("restore_from_xpub in....")
+        is_valid = keystore.is_bip32_key(xpub)
+        if is_valid:
+            print("valid is true....")
+            try:
+                derivation = bip44_eth_derivation(0, bip43_purpose=44)
+                d = {
+                    'type': 'hardware',
+                    'hw_type': 'trezor',
+                    'derivation': derivation,
+                    'xpub': xpub,
+                    'label': 'device_info.label',
+                    'device_id': device_id,
+                }
+                k = hardware_keystore(d)
+                return k
+            except Exception as e:
+                raise e
+        else:
+            raise Exception("invaild type of xpub")
 
     def restore_from_xpub(self, xpub, device_id):
         from .keystore import hardware_keystore

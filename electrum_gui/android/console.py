@@ -1855,7 +1855,7 @@ class AndroidCommands(commands.Commands):
         with self.lock:
             client = self.get_client(path=path, clean=True)
         return json.dumps(protobuf.to_dict(client.features))
-
+    
     def get_xpub_from_hw(self, path='android_usb', _type='p2wsh', is_creating=True, account_id=None):
         '''
         Get extended public key from hardware
@@ -2008,7 +2008,7 @@ class AndroidCommands(commands.Commands):
                 print("Update aborted on device.")
             except exceptions.TrezorException as e:
                 raise BaseException("Update failed: {}".format(e))
-    '''
+
     ####################################################
     ## app wallet
     def export_seed(self, password):
