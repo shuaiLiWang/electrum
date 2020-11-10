@@ -57,6 +57,7 @@ if "iOS_DATA" in os.environ:
     from .custom_objc import *
     from .ioscallback import *
 
+
 COIN_POS = 2
 ACCOUNT_POS = 3
 RECOVERY_DERIVAT_NUM = 20
@@ -854,6 +855,7 @@ class AndroidCommands(commands.Commands):
         :param tx: tx that created by get_fee_by_feerate
         :return: tx info
         '''
+
         try:
             self._assert_wallet_isvalid()
             tx = tx_from_any(tx)
@@ -1016,6 +1018,7 @@ class AndroidCommands(commands.Commands):
             return data
         except BaseException as e:
             raise e
+
 
     def set_base_uint(self, base_unit):
         '''
@@ -2273,6 +2276,7 @@ class AndroidCommands(commands.Commands):
         #     self.label_plugin.load_wallet(self.wallet, None)
         return new_seed
 
+
     def is_watch_only(self):
         '''
         Check if it is watch only wallet
@@ -2480,6 +2484,7 @@ class AndroidCommands(commands.Commands):
         :param coin: btc/eth as str
         :return:
         '''
+
         self._assert_coin_isvalid(coin)
         try:
             self.check_password(password)
@@ -2756,6 +2761,7 @@ class AndroidCommands(commands.Commands):
             addr = wallet.get_addresses()[0]
             new_name = '%s...%s' %(addr[0:6], addr[-6:])
             self.rename_wallet(name, new_name)
+
         self.update_local_wallet_info(name, wallet_type, keystores=wallet.get_keystore().xpub)
         # if self.label_flag:
         #     self.label_plugin.load_wallet(self.wallet, None)
