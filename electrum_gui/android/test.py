@@ -35,7 +35,7 @@ name = 'hahahahhahh999' #software wallet create seed:rocket omit review divert b
 #name = "test_hide_wallet"
 password = "111111"
 
-data = testcommond.get_eth_exchange_currency(50)
+#data = testcommond.get_eth_exchange_currency(50)
 #password = "None"
 #test hardware
 #testcommond.get_xpub_from_hw()
@@ -51,6 +51,7 @@ data = testcommond.get_eth_exchange_currency(50)
 ## test recovery
 #info = testcommond.create_hd_wallet(password=password, seed='rocket omit review divert bomb brief mushroom family fatal limb goose lion')
 #testcommond.load_all_wallet()
+
 # data = testcommond.list_wallets()
 # #data = json.loads(info)
 
@@ -187,8 +188,9 @@ data = testcommond.get_eth_exchange_currency(50)
 # ret1 = testcommond.is_seed("wls")
 #testcommond.create(name, password, seed='rocket omit review divert bomb brief mushroom family fatal limb goose lion')
 #testcommond.get_all_mnemonic()
-testcommond.load_all_wallet()
-testcommond.create_derived_wallet("test11", password, "btc")
+#testcommond.load_all_wallet()
+#testcommond.create_derived_wallet("test11", password, "eth")
+
 #new_seed = testcommond.create("test", password)
 #testcommond.create("test", password, seed="crash frost drive trigger render dizzy vacuum cement enact minute curve blanket")
 #testcommond.create("test1", password=password, privkeys="e6841ceb170becade0a4aa3e157f08871192f9de1c35835de5e1b47fc167d27e")
@@ -202,8 +204,14 @@ testcommond.create_derived_wallet("test11", password, "btc")
 #testcommond.create("", password, seed='pool friend inherit unhappy quote dwarf drill suit coil advance cage debate')
 #testcommond.create(name, password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer')
 
-#testcommond.load_all_wallet()
-#testcommond.create_eth(name, password=password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer')
+testcommond.load_all_wallet()
+#testcommond.create_eth("", password=password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer')
+#testcommond.create_eth("", password=password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer')
+# keystore = {"address":"b44dac9202092abc14cbeba1a3eb09a0da85e9cf","crypto":{"cipher":"aes-128-ctr","ciphertext":"967d40fe201db62c5d11779a0ec81dda2ccf91a5916ccd65d6b7eb4bb9aab2e6","cipherparams":{"iv":"59ffd740faf16119b9f741c70a12076b"},"kdf":"scrypt","kdfparams":{"dklen":32,"n":262144,"p":1,"r":8,"salt":"2459e794b08cf58d8d80dcdf101b7fe1958bd4bcb4281ec75b79fb7e6e9a7790"},"mac":"daa9ddfb8e66138d2929c7f0c65769fc31a70d0f6b35330b721e45f1e0d04ed5"},"id":"616132ab-7f4f-47df-b3ea-5e3d3b3f1110","version":3}
+# testcommond.create_eth("", password=password, keystores=keystore)
+# testcommond.create_eth(name, password=password, privkeys="0xe6841ceb170becade0a4aa3e157f08871192f9de1c35835de5e1b47fc167d27e")
+# testcommond.create_eth(name, addresses='0x1796c64fBb9A3fd96e89B08110bb294992b686E1')
+data = testcommond.get_all_wallet_balance()
 time.sleep(100000)
 #bala = testcommond.select_wallet(name)
 #test create hd wallet

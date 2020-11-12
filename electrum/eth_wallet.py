@@ -183,7 +183,7 @@ class Abstract_Eth_Wallet(ABC):
             balance_info = {}
             balance_info[symbol] = balance
             balance_info['fiat'] = balance * last_price
-            eth_info[symbol] = balance
+            eth_info[symbol] = balance_info
         return eth_info
 
     def add_contract_token(self, contract_symbol, contract_address):
@@ -801,7 +801,6 @@ class Imported_Eth_Wallet(Simple_Eth_Wallet):
             except BaseException as e:
                 bad_keys.append((key, _('invalid private key') + f': {e}'))
                 continue
-
             addr = pubkey.to_address()
             good_addr.append(addr)
             self.db.add_imported_address(addr, {'pubkey':pubkey.__str__()})
