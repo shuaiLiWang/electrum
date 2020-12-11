@@ -321,8 +321,9 @@ class AndroidCommands(commands.Commands):
             else:
                 c, u, x = self.wallet.get_balance()
                 text = _("Balance") + ": %s " % (self.format_amount_and_units(c))
-                out['balance'] = self.format_amount(c)
-                out['fiat'] = self.daemon.fx.format_amount_and_units(c) if self.daemon.fx else None
+                show_balance = c + u
+                out['balance'] = self.format_amount(show_balance)
+                out['fiat'] = self.daemon.fx.format_amount_and_units(show_balance) if self.daemon.fx else None
                 if u:
                     out['unconfirmed'] = self.format_amount(u, is_diff=True).strip()
                     text += " [%s unconfirmed]" % (self.format_amount(u, is_diff=True).strip())
@@ -2085,7 +2086,7 @@ class AndroidCommands(commands.Commands):
             # self.check_pw_wallet = wallet
             wallet_type = 'eth-hd-standard-hw'
         self.update_local_wallet_info(self.get_unique_path(wallet), wallet_type)
-
+    
     ####################################################
     ## app wallet
     def export_privkey(self, password):
@@ -2655,8 +2656,8 @@ class AndroidCommands(commands.Commands):
                 else:
                     history = reversed(wallet.get_history())
                     for item in history:
-                        c, _, _ = wallet.get_balance()
-                        self.update_recover_list(recovery_list, self.format_amount_and_units(c), str(wallet), wallet.get_name(), "btc")
+                        c, u, _ = wallet.get_balance()
+                        self.update_recover_list(recovery_list, self.format_amount_and_units(c+u), str(wallet), wallet.get_name(), "btc")
                         break
             except BaseException as e:
                 raise e
@@ -2908,7 +2909,7 @@ class AndroidCommands(commands.Commands):
                     all_wallet_info.append(wallet_info)
                 else:
                     c, u, x = wallet.get_balance()
-                    balance = self.daemon.fx.format_amount_and_units(c) if self.daemon.fx else None
+                    balance = self.daemon.fx.format_amount_and_units(c + u) if self.daemon.fx else None
                     fiat = float(balance.split()[0].replace(',', ""))
                     all_balance += fiat
                     wallet_info['btc'] = self.format_amount(c)
@@ -3236,13 +3237,13 @@ class AndroidCommands(commands.Commands):
                 c, u, x = self.wallet.get_balance()
                 print("console.select_wallet %s %s %s==============" % (c, u, x))
                 print("console.select_wallet[%s] blance = %s wallet_type = %s use_change=%s add = %s " % (
-                    self.wallet.get_name(), self.format_amount_and_units(c), self.wallet.wallet_type, self.wallet.use_change,
+                    self.wallet.get_name(), self.format_amount_and_units(c+u), self.wallet.wallet_type, self.wallet.use_change,
                     self.wallet.get_addresses()))
                 util.trigger_callback("wallet_updated", self.wallet)
 
-                fait = self.daemon.fx.format_amount_and_units(c) if self.daemon.fx else None
+                fait = self.daemon.fx.format_amount_and_units(c+u) if self.daemon.fx else None
                 info = {
-                    "balance": self.format_amount(c) + ' (%s)' % fait,
+                    "balance": self.format_amount(c+u) + ' (%s)' % fait,
                     "name": name,
                     "label":self.wallet.get_name()
                 }
