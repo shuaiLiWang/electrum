@@ -116,7 +116,7 @@ public class HdWalletDetailActivity extends BaseActivity {
         String hdWalletName = getIntent().getStringExtra("hdWalletName");
         isBackup = getIntent().getBooleanExtra("isBackup", false);
         textWalletName.setText(hdWalletName);
-        if (StringConstant.Btc_HD_Standard.equals(showWalletType) || StringConstant.Btc_Derived_Standard.equals(showWalletType)) {
+        if (StringConstant.Btc_Derived_Standard.equals(showWalletType)) {
             textHdWallet.setText(getString(R.string.hd_wallet));
             //HD wallet detail and derive wallet
             linHdWalletShow.setVisibility(View.VISIBLE);
@@ -185,8 +185,8 @@ public class HdWalletDetailActivity extends BaseActivity {
                 export(view.getId());
                 break;
             case R.id.rel_delete_wallet:
-                if (StringConstant.Btc_HD_Standard.equals(showWalletType) || StringConstant.Btc_Derived_Standard.equals(showWalletType)) {
-                    showDeleteDialog(0);
+                if (StringConstant.Btc_Derived_Standard.equals(showWalletType)) {
+                    showDeleteDialog();
                 } else {
                     if (showWalletType.contains(StringConstant.HW) || showWalletType.contains(StringConstant.Watch)) {
                         DeleteWalletTipsDialog dialog = new DeleteWalletTipsDialog();
@@ -225,13 +225,13 @@ public class HdWalletDetailActivity extends BaseActivity {
                         if (!isBackup) {
                             showBackDialog();
                         } else {
-                            doSelect(mode);
+                            doSelect();
                         }
                     }
                 }, CustomReSetBottomPopup.deleteHdChildren)).show();
     }
 
-    private void doSelect (int mode) {
+    private void doSelect () {
         PyResponse<String> response = PyEnv.getDerivedNum("btc");
         if (Strings.isNullOrEmpty(response.getErrors())) {
             int coinNum = Integer.parseInt(response.getResult());
@@ -268,9 +268,7 @@ public class HdWalletDetailActivity extends BaseActivity {
                 LocalWalletInfo info = LocalWalletInfo.objectFromData(stringEntry.getValue().toString());
                 String type = info.getType();
                 String name = info.getName();
-                if (Constant.WALLET_TYPE_LOCAL_HD.equals(type)) {
-                    deleteHdWalletName = name;
-                }
+                deleteHdWalletName = name;
             });
         }
         hdWalletIsBackup();
@@ -288,7 +286,7 @@ public class HdWalletDetailActivity extends BaseActivity {
                 finish();
             } else {
                 //没备份提示备份
-                new BackupRequireDialog(mContext).show(getSupportFragmentManager(), "");
+                new BackupRequireDialog(this).show(getSupportFragmentManager(), "");
             }
         } catch (Exception e) {
             mToast(e.getMessage());
@@ -361,7 +359,7 @@ public class HdWalletDetailActivity extends BaseActivity {
 
     private void deleteSingleWallet (String password) {
         String keyName = PreferencesManager.get(this, "Preferences", Constant.CURRENT_SELECTED_WALLET_NAME, "").toString();
-        PyResponse<Void> response = PyEnv.deleteWallet(password, keyName);
+        PyResponse<Void> response = PyEnv.deleteWallet(password, keyName,false);
         String errors = response.getErrors();
         if (Strings.isNullOrEmpty(errors)) {
             onDeleteSuccess(keyName);

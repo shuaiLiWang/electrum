@@ -186,6 +186,9 @@ public final class Constant {
      * 软件hd
      */
     public static final String WALLET_TYPE_LOCAL_HD = "btc-hd-standard";
+
+    public static final String Btc_Derived_Standard = "btc-derived-standard";
+
     /**
      * 固件升级文件后缀
      */

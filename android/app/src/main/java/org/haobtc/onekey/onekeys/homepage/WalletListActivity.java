@@ -290,7 +290,7 @@ public class WalletListActivity extends BaseActivity {
             wallets.entrySet().forEach(stringEntry -> {
                 LocalWalletInfo info = LocalWalletInfo.objectFromData(stringEntry.getValue().toString());
                 String type = info.getType();
-                if ("btc-hd-standard".equals(type) || "btc-derived-standard".equals(type)) {
+                if ("btc-derived-standard".equals(type)) {
                     hdWalletList.add(info);
                 }
                 if (type.contains("btc")) {

@@ -37,7 +37,7 @@ public class WalletListAdapter extends BaseQuickAdapter<LocalWalletInfo, BaseVie
             view.setBackground(mContext.getDrawable(R.drawable.eth_blue_back));
             imgType.setImageDrawable(mContext.getDrawable(R.drawable.token_trans_eth_list));
         }
-        if ("btc-hd-standard".equals(item.getType()) || "btc-derived-standard".equals(item.getType())) {
+        if ( "btc-derived-standard".equals(item.getType())) {
             helper.getView(R.id.text_type).setVisibility(View.VISIBLE);
             helper.setText(R.id.text_type, "HD");
         } else if (item.getType().contains("hw")) {

@@ -4,6 +4,7 @@ import android.view.View;
 import android.widget.Button;
 
 import org.haobtc.onekey.R;
+import org.haobtc.onekey.onekeys.homepage.process.HdWalletDetailActivity;
 import org.haobtc.onekey.ui.base.BaseDialogFragment;
 import org.haobtc.onekey.utils.NavUtils;
 

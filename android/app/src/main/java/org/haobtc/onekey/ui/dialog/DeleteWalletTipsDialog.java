@@ -65,7 +65,7 @@ public class DeleteWalletTipsDialog extends BaseDialogFragment {
     }
     private void deleteWatchWallet() {
         String keyName = PreferencesManager.get(requireActivity(), "Preferences", Constant.CURRENT_SELECTED_WALLET_NAME, "").toString();
-        PyResponse<Void> response = PyEnv.deleteWallet("111111", keyName);
+        PyResponse<Void> response = PyEnv.deleteWallet("111111", keyName,false);
         String error = response.getErrors();
         if (Strings.isNullOrEmpty(error)) {
             PreferencesManager.remove(getContext(), Constant.WALLETS, keyName);

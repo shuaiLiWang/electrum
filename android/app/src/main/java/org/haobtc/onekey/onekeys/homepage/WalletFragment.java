@@ -278,7 +278,7 @@ public class WalletFragment extends BaseFragment implements TextWatcher {
 
     private void showTypeInfo(LocalWalletInfo localWalletInfo) {
         nowType = localWalletInfo.getType();
-        if (org.haobtc.onekey.constant.Constant.WALLET_TYPE_LOCAL_HD.equals(nowType)) {
+        if (org.haobtc.onekey.constant.Constant.Btc_Derived_Standard.equals(nowType)) {
             PreferencesManager.put(getContext(), "Preferences", org.haobtc.onekey.constant.Constant.HAS_LOCAL_HD, true);
         }
         edit.putString(CURRENT_SELECTED_WALLET_TYPE, nowType);
