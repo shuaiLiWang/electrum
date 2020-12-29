@@ -52,7 +52,7 @@ from . import util
 from .util import (NotEnoughFunds, UserCancelled, profiler,
                    format_satoshis, format_fee_satoshis, NoDynamicFeeEstimates,
                    WalletFileException, BitcoinException, MultipleSpendMaxTxOutputs,
-                   InvalidPassword, format_time, timestamp_to_datetime, Satoshis,
+                   InvalidPassword, format_time, timestamp_to_datetime, Satoshis, UserCancel,
                    Fiat, bfh, bh2u, TxMinedInfo, quantize_feerate, create_bip21_uri, OrderedDictWithIndex)
 from .util import get_backup_dir
 from .simple_config import SimpleConfig
@@ -1594,7 +1594,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 msg = str(e)
                 print(f"wallet:L1510======={e}======")
                 if isinstance(e, UserCancelled):
-                    raise BaseException(_("Operation cancelled"))
+                    raise BaseException(UserCancel())
                 if -1 != msg.find("sign success"):
                     break
                 if -1 != msg.find("Can't Pair With You Device When Sign tx"):

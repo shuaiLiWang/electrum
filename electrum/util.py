@@ -124,6 +124,10 @@ class InvalidPassword(Exception):
     def __str__(self):
         return _("Incorrect password.")
 
+class UserCancel(Exception):
+    def __str__(self):
+        return _("Operation cancelled")
+
 class InvalidBip39Seed(Exception):
     def __str__(self):
         return _("Incorrect Bip39 mnemonic format.")

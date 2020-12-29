@@ -16,6 +16,7 @@ import random
 import string
 from electrum.util import (
     FailedGetTx,
+    UserCancel,
     NotEnoughFunds,
     NotEnoughFundsStr,
     FileAlreadyExist,
@@ -184,6 +185,7 @@ class AndroidCommands(commands.Commands):
         self.network = self.daemon.network
         self.daemon_running = False
         self.wizard = None
+        self.recovery_flag = True
         self.plugin = Plugins(self.config, 'cmdline')
         self.label_plugin = self.plugin.load_plugin("labels")
         self.label_flag = self.config.get('use_labels', False)
@@ -2960,23 +2962,35 @@ class AndroidCommands(commands.Commands):
     def get_type(self, xtype):
         return 'p2wpkh-p2sh' if xtype == 49 else 'p2pkh' if xtype == 44 else 'p2wpkh' if xtype == 84 else ""
 
+    def recovery_create_subfun(self, coin, account_id, hw, name, seed, password, passphrase, path):
+        try:
+            type_list = [49, 44, 84]
+            if coin == 'btc':
+                for xtype in type_list:
+                    bip39_derivation = self.get_coin_derived_path(account_id, coin, purpose=xtype)
+                    if not self.recovery_flag:
+                        return False
+                    if not hw:
+                        self.recovery_create(name, seed, password=password,
+                                         bip39_derivation=bip39_derivation,
+                                         passphrase=passphrase, coin=coin)
+                    else:
+                        xpub = self.get_xpub_from_hw(path=path, _type= self.get_type(xtype), account_id=account_id, coin=coin)
+                        self.recovery_import_create_hw_wallet(account_id, name, 1, 1, xpub, coin=coin)
+                return True
+        except BaseException as e:
+            raise e
+
     def recovery_wallet(self, seed=None, password=None, passphrase="", coin='btc', xpub=None, hw=False, path='bluetooth'):
         derived = DerivedInfo(self.config)
         derived.init_recovery_num()
-        type_list = [49, 44, 84]
+        
         for derived_xpub, derived_wallet in self.derived_info.items():
             if xpub == derived_xpub:
                 for derived_info in derived_wallet:
-                    if coin == 'btc':
-                        for xtype in type_list:
-                            bip39_derivation = self.get_coin_derived_path(derived_info['account_id'], coin, purpose=xtype)
-                            if not hw:
-                                self.recovery_create(derived_info['name'], seed, password=password,
-                                                 bip39_derivation=bip39_derivation,
-                                                 passphrase=passphrase, coin=coin)
-                            else:
-                                xpub = self.get_xpub_from_hw(path=path, _type= self.get_type(xtype), account_id=derived_info['account_id'], coin=coin)
-                                self.recovery_import_create_hw_wallet(derived_info['account_id'], derived_info['name'], 1, 1, xpub, coin=coin)
+                    flag = self.recovery_create_subfun(coin, derived_info['account_id'], hw, derived_info['name'], seed, password, passphrase, path)
+                    if not flag:
+                        return False
                     derived.update_recovery_info(derived_info['account_id'])
 
         derived.reset_list()
@@ -2984,22 +2998,9 @@ class AndroidCommands(commands.Commands):
         ##create the wallet 0~19 that not in the config file, the wallet must have tx history
         if account_list is not None:
             for i in account_list:
-                if coin == 'btc':
-                    for xtype in type_list:
-                        bip39_derivation = self.get_coin_derived_path(i, coin, purpose=xtype)
-                        if not hw:
-                            self.recovery_create("%s_derived_%s" % (coin, i), seed, password=password,
-                                 bip39_derivation=bip39_derivation, passphrase=passphrase, coin=coin)
-                        else:
-                            xpub = self.get_xpub_from_hw(path, _type=self.get_type(xtype), account_id=i, coin=coin)
-                            self.recovery_import_create_hw_wallet(i, "%s_hd_derived_%s" % (coin, i), 1, 1, xpub, coin=coin)
-        # if hw:
-        #     ##TODO recovery multi info from server, need test
-        #     info = self.get_wallet_info_from_server(hd_wallet.get_keystore().xpub)
-        #     info_list = json.loads(info)
-            # for wallet_info in info_list:
-            #     if wallet_info['walletType'] != '1-1':
-            #         self.recovery_import_create_hw_wallet(wallet_info['walletName'], 1, 1, wallet_info['xpubs'], coin=coin)
+                flag = self.recovery_create_subfun(coin, i, hw, "%s_derived_%s" % (coin, i), seed, password, passphrase, path)
+                if not flag:
+                    return False
 
     def get_hd_wallet(self):
         if self.hd_wallet is None:
@@ -3008,6 +3009,14 @@ class AndroidCommands(commands.Commands):
 
     def get_hd_wallet_encode_seed(self, coin=''):
         return self.get_hd_wallet().get_keystore().xpub + coin
+
+    def set_recovery_flag(self, flag=False):
+        '''
+        Support recovery process was withdrawn
+        :param flag: true/false
+        :return:
+        '''
+        self.recovery_flag = flag
 
     def recovery_hd_derived_wallet(self, password=None, seed=None, passphrase='', xpub=None, hw=False, wallet_data=None, path='bluetooth'):
         if hw:
@@ -3021,6 +3030,11 @@ class AndroidCommands(commands.Commands):
             #     xpub = self.get_hd_wallet_encode_seed(coin)
             #     PyWalib.set_server(info)
             #     self.recovery_wallet(seed, password, passphrase, xpub=xpub, hw=hw)
+        if not self.recovery_flag:
+            self.recovery_wallets.clear()
+            self.recovery_flag = True
+            return UserCancel()
+
         recovery_list = self.filter_wallet()
         out_info = []
         if wallet_data is not None:
