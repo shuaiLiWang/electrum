@@ -1300,11 +1300,18 @@ class AndroidCommands(commands.Commands):
 
         block_height = tx_details.tx_mined_status.height
         show_fee = ""
-        if tx_list is None:
-            if tx_details.fee is not None:
-                show_fee = self.format_amount_and_units(tx_details.fee)
-            else:
-                show_fee = self.get_fee_from_server(tx_details.txid)
+        if tx_details.fee is not None:
+            show_fee = self.format_amount_and_units(tx_details.fee)
+        else:
+            if tx_list is None:
+                show_fee = self.txdb.get_received_tx_fee_info(tx_details.txid)
+                if len(show_fee) != 0:
+                    show_fee = show_fee[0][1]
+                    print(f"111111111111----------{show_fee}")
+                else:
+                    show_fee = self.get_fee_from_server(tx_details.txid)
+                    print(f"111111111111------222222222222----{show_fee}")
+                    self.txdb.add_received_tx_fee_info(tx_details.txid, show_fee)
         ret_data = {
             'txid': tx_details.txid,
             'can_broadcast': tx_details.can_broadcast,
@@ -1442,6 +1449,8 @@ class AndroidCommands(commands.Commands):
                 if amount[0] == '-':
                     amount = amount[1:]
                 fee = data['fee'].split(" ")[0]
+                if fee == "":
+                    fee = 0
                 fait = self.daemon.fx.format_amount_and_units(float(amount) + float(fee)) if self.daemon.fx else None
                 show_amount = '%.8f' %(float(amount) + float(fee))
                 show_amount = str(show_amount).rstrip('0')
