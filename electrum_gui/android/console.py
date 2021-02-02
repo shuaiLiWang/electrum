@@ -528,13 +528,16 @@ class AndroidCommands(commands.Commands):
                 return
             if db.get_action():
                 return
-
-            if self.coins.__contains__(db.data['wallet_type'][0:3]):
-                wallet = Eth_Wallet(db, storage, config=self.config)
+            wallet_type = db.data['wallet_type']
+            if wallet_type[0:3] in self.coins:
+                if "importe" in wallet_type:
+                    wallet = Eth_Wallet(db, storage, config=self.config)
+                else:
+                    wallet = Standard_Eth_Wallet(db, storage, config=self.config, index=db.data['address_index'])
             else:
                 wallet = Wallet(db, storage, config=self.config)
                 wallet.start_network(self.network)
-            if self.local_wallet_info.__contains__(name):
+            if name in self.local_wallet_info:
                 wallet_type = self.local_wallet_info.get(name)['type']
                 if self.is_have_hd_wallet(wallet_type):
                     self.set_hd_wallet(wallet)
