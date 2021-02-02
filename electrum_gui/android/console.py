@@ -93,6 +93,7 @@ if "iOS_DATA" in os.environ:
 
 PURPOSE_POS = 1
 ACCOUNT_POS = 3
+INDEX_POS = 5
 BTC_BLOCK_INTERVAL_TIME = 10
 DEFAULT_ADDR_TYPE = 49
 ticker = None
@@ -2830,7 +2831,7 @@ class AndroidCommands(commands.Commands):
         for coin, info in self.coins.items():
             if coin in create_coin_list:
                 name = "%s-1" % coin.upper()
-                bip39_derivation = bip44_derivation(0, info['addressType'], info['coinId'])
+                bip39_derivation = bip44_derivation(0, info['addressType'], cointype=info['coinId'], coin=coin)
                 wallet_info = self.create(name, password, seed=seed, passphrase=passphrase,
                                           bip39_derivation=bip39_derivation, hd=True, coin=coin)
                 wallet_data.append(json.loads(wallet_info))
@@ -3092,10 +3093,11 @@ class AndroidCommands(commands.Commands):
                     is_checksum, is_wordlist = keystore.bip39_is_checksum_valid(seed)
                     if not is_checksum:
                         raise BaseException(InvalidBip39Seed())
-                    ks = keystore.from_bip39_seed(seed, passphrase, bip39_derivation)
-                # if int(bip39_derivation.split('/')[ACCOUNT_POS].split('\'')[0]) != 0:
+                    ks = keystore.from_bip39_seed(seed, passphrase, util.get_keystore_path(bip39_derivation) if coin in self.coins else bip39_derivation)
                 wallet_type = '%s-derived-standard' % coin
                 derived_flag = True
+                if coin in self.coins:
+                    index = self.get_path_info(bip39_derivation, INDEX_POS)
 
             elif master is not None:
                 ks = keystore.from_master_key(master)
@@ -3115,14 +3117,15 @@ class AndroidCommands(commands.Commands):
                     if coin == "btc":
                         derivation = bip44_derivation(0, purpose)
                     elif self.coins.__contains__(coin):
+                        index = 0
                         derivation = bip44_derivation(0, self.coins[coin]['addressType'],
-                                                      coin=self.coins[coin]['coinId'])
-                    ks = keystore.from_bip39_seed(seed, passphrase, derivation=derivation)
+                                                      cointype=self.coins[coin]['coinId'], coin=coin)
+                    ks = keystore.from_bip39_seed(seed, passphrase, derivation=util.get_keystore_path(derivation) if coin in self.coins else derivation)
             db.put('keystore', ks.dump())
             if coin == "btc":
                 wallet = Standard_Wallet(db, storage, config=self.config)
             elif self.coins.__contains__(coin):
-                wallet = Standard_Eth_Wallet(db, storage, config=self.config)
+                wallet = Standard_Eth_Wallet(db, storage, config=self.config, index=int(index))
         addr = wallet.get_addresses()[0]
         new_name = self.get_unique_path(wallet)
         wallet.storage.set_path(self._wallet_path(new_name))
@@ -3322,11 +3325,11 @@ class AndroidCommands(commands.Commands):
                 raise e
         return recovery_list
 
-    def update_recovery_wallet(self, key, wallet_obj, bip39_derivation, name):
+    def update_recovery_wallet(self, key, wallet_obj, bip39_derivation, name, coin):
         wallet_info = {}
         wallet_info['key'] = key
         wallet_info['wallet'] = wallet_obj
-        wallet_info['account_id'] = int(bip39_derivation.split('/')[ACCOUNT_POS].split('\'')[0])
+        wallet_info['account_id'] = int(self.get_account_id(bip39_derivation, coin))
         wallet_info['name'] = name
         return wallet_info
 
@@ -3334,41 +3337,42 @@ class AndroidCommands(commands.Commands):
         if coin == "btc":
             return bip44_derivation(account_id, bip43_purpose=purpose)
         else:
-            return bip44_derivation(account_id, self.coins[coin]['addressType'], coin=self.coins[coin]['coinId'])
+            return bip44_derivation(account_id, self.coins[coin]['addressType'], cointype=self.coins[coin]['coinId'], coin=coin)
 
     def recovery_import_create_hw_wallet(self, i, name, m, n, xpubs, coin='btc'):
         try:
-            if coin == 'btc':
-                self.set_multi_wallet_info(name, m, n)
-                self.add_xpub(xpubs, self.hw_info['device_id'], i, self.hw_info['type'])
+            self.set_multi_wallet_info(name, m, n)
+            self.add_xpub(xpubs, self.hw_info['device_id'], i, self.hw_info['type'], coin=coin)
 
-                temp_path = self.get_temp_file()
-                path = self._wallet_path(temp_path)
-                keystores = self.get_keystores_info()
-                # if not hide_type:
-                #     for key, value in self.local_wallet_info.items():
-                #         num = 0
-                #         for xpub in keystores:
-                #             if value['xpubs'].__contains__(xpub):
-                #                 num += 1
-                #         if num == len(keystores) and value['type'] == wallet_type:
-                #             raise BaseException(f"The same xpubs have create wallet, name={key}")
-                storage, db = self.wizard.create_storage(path=path, password='', hide_type=True)
-                if storage:
+            temp_path = self.get_temp_file()
+            path = self._wallet_path(temp_path)
+            keystores = self.get_keystores_info()
+            if not hide_type:
+                for key, value in self.local_wallet_info.items():
+                    num = 0
+                    for xpub in keystores:
+                        if value['xpubs'].__contains__(xpub):
+                            num += 1
+                    if num == len(keystores) and value['type'] == wallet_type:
+                        raise BaseException(f"The same xpubs have create wallet, name={key}")
+            storage, db = self.wizard.create_storage(path=path, password='', hide_type=True, coin=coin)
+            if storage:
+                if coin in self.coins:
+                    #wallet = Eth_Wallet(db, storage, config=self.config, index=self.hw_info['account_id'])
+                    wallet = Standard_Eth_Wallet(db, storage, config=self.config, index=i)
+                else:
                     wallet = Wallet(db, storage, config=self.config)
-                    # wallet.status_flag = ("btc-hw-%s-%s" % (m, n))
-                    wallet.set_name(name)
-                    wallet.hide_type = True
-                    new_name = self.get_unique_path(wallet)
-                    wallet.storage.set_path(self._wallet_path(new_name))
-                    wallet.update_password(old_pw=None, new_pw=None, str_pw=self.android_id, encrypt_storage=True)
+                wallet.set_name(name)
+                wallet.hide_type = True
+                new_name = self.get_unique_path(wallet)
+                wallet.storage.set_path(self._wallet_path(new_name))
+                wallet.update_password(old_pw=None, new_pw=None, str_pw=self.android_id, encrypt_storage=True)
+                if coin == 'btc':
                     wallet.start_network(self.daemon.network)
-                    self.recovery_wallets[new_name] = self.update_recovery_wallet(xpubs, wallet,
-                                                                                  self.get_coin_derived_path(i, coin),
-                                                                                  name)
-                    self.wizard = None
-            else:
-                print("TODO recovery create from hw")
+                self.recovery_wallets[new_name] = self.update_recovery_wallet(xpubs, wallet,
+                                                                              self.get_coin_derived_path(i, coin),
+                                                                              name, coin)
+                self.wizard = None
         except Exception as e:
             raise BaseException(e)
 
@@ -3483,11 +3487,15 @@ class AndroidCommands(commands.Commands):
     def recovery_hd_derived_wallet(self, password=None, seed=None, passphrase='', xpub=None, hw=False,
                                    path='bluetooth'):
         if hw:
-            self.recovery_wallet(xpub=xpub, hw=hw, path=path)
+            self.recovery_wallet(xpub=xpub, hw=hw, path=path, coin='btc')
+
+            if 'ANDROID_DATA' in os.environ:
+                for coin, info in self.coins.items():
+                    PyWalib.set_server(info)
+                    self.recovery_wallet(xpub=xpub, hw=hw, path=path, coin=coin)
         else:
             xpub = self.get_hd_wallet_encode_seed(seed=seed, coin='btc')
             self.recovery_wallet(seed, password, passphrase, xpub=xpub, hw=hw)
-
 
             if 'ANDROID_DATA' in os.environ:
                 for coin, info in self.coins.items():
@@ -3545,14 +3553,8 @@ class AndroidCommands(commands.Commands):
             account_id = list_info[0]
         else:
             account_id = 0
-        # hd_flag = True
-        # wallet_type = '%s-hd-standard' % coin
-        # for wallet_info in json.loads(self.list_wallets()):
-        #     for _, info in wallet_info.items():
-        #         if info['type'] == wallet_type:
-        #             hd_flag = False
 
-        derivat_path = bip44_derivation(account_id, purpose, coin=coin_type)
+        derivat_path = bip44_derivation(account_id, purpose, cointype=coin_type, coin=coin)
         return self.create(name, password, seed=seed, bip39_derivation=derivat_path, strength=strength,
                            coin=coin)
 
@@ -3576,10 +3578,10 @@ class AndroidCommands(commands.Commands):
             raise BaseException(FileAlreadyExist())
         storage = WalletStorage(path)
         db = WalletDB('', manual_upgrades=False)
-        ks = keystore.from_bip39_seed(seed, passphrase, bip39_derivation)
+        ks = keystore.from_bip39_seed(seed, passphrase, util.get_keystore_path(bip39_derivation) if coin in self.coins else bip39_derivation)
         db.put('keystore', ks.dump())
         if self.coins.__contains__(coin):
-            wallet = Standard_Eth_Wallet(db, storage, config=self.config)
+            wallet = Standard_Eth_Wallet(db, storage, config=self.config, index=account_id)
             wallet.wallet_type = '%s_standard' % coin
         else:
             wallet = Standard_Wallet(db, storage, config=self.config)
@@ -3588,7 +3590,7 @@ class AndroidCommands(commands.Commands):
         new_name = self.get_unique_path(wallet)
         wallet.storage.set_path(self._wallet_path(new_name))
         self.recovery_wallets[new_name] = self.update_recovery_wallet(
-            self.get_hd_wallet_encode_seed(seed=seed, coin=coin), wallet, bip39_derivation, name)
+            self.get_hd_wallet_encode_seed(seed=seed, coin=coin), wallet, bip39_derivation, name, coin)
         wallet.update_password(old_pw=None, new_pw=password, str_pw=self.android_id, encrypt_storage=True)
         if coin == 'btc':
             wallet.start_network(self.daemon.network)
@@ -4044,7 +4046,6 @@ class AndroidCommands(commands.Commands):
                 checksum_from_address = self.pywalib.web3.toChecksumAddress(addrs[0])
                 balance_info = self.wallet.get_all_balance(checksum_from_address,
                                                            self.coins[self.wallet.wallet_type[0:3]]['symbol'])
-
                 wallet_balances = [
                     {
                         "coin": key,
