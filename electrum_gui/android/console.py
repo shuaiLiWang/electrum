@@ -3481,8 +3481,13 @@ class AndroidCommands(commands.Commands):
                 if account_id != 0:
                     continue
                 if self.coins.__contains__(coin) or purpose == 49:
+                    try:
+                        self.check_exist_file(wallet)
+                        exist = 0
+                    except:
+                        exist = 1
                     wallet_info = CreateWalletInfo.create_wallet_info(coin_type="btc" if purpose == 49 else coin,
-                                                                      name=str(wallet))
+                                                                      name=str(wallet), exist=exist)
                     wallet_list.append(wallet_info[0])
             except BaseException as e:
                 raise e
