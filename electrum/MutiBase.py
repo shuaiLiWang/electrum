@@ -80,39 +80,11 @@ class MutiBase(Logger):
             self.n = n
             self.m = m
         self.path = path
-        print("=================set_multi_wallet_info ok....")
-
-    @staticmethod
-    def get_eth_keystore(xpub, coin, device_id=''):
-        from .keystore import hardware_keystore
-        print("restore_from_xpub in....")
-        is_valid = keystore.is_bip32_key(xpub)
-        if is_valid:
-            print("valid is true....")
-            try:
-                derivation = bip44_derivation(0, bip43_purpose=44, coin=coin)
-                d = {
-                    'type': 'hardware',
-                    'hw_type': 'trezor',
-                    'derivation': derivation,
-                    'xpub': xpub,
-                    'label': 'device_info.label',
-                    'device_id': device_id,
-                }
-                k = hardware_keystore(d)
-                return k
-            except Exception as e:
-                raise e
-        else:
-            raise Exception("invaild type of xpub")
 
     def restore_from_xpub(self, xpub, device_id, account_id=0, type=84, coin='btc', coinid=None):
         from .keystore import hardware_keystore
-        print("restore_from_xpub in....")
         is_valid = keystore.is_bip32_key(xpub)
         if is_valid:
-            print("valid is true....")
-            #k = keystore.from_master_key(xpub)
             try:
                 if self.wallet_type == 'multisig':
                     derivation = purpose48_derivation(0, xtype='p2wsh')

@@ -586,7 +586,6 @@ class AndroidCommands(commands.Commands):
 
     def add_xpub(self, xpub, device_id=None, account_id=0, type=84, coin='btc'):
         try:
-            print(f"add_xpub........{xpub, device_id}")
             self._assert_daemon_running()
             self._assert_wizard_isvalid()
             if BIP32Node.from_xkey(xpub).xtype != 'p2wsh' and self.n >= 2:
@@ -730,9 +729,7 @@ class AndroidCommands(commands.Commands):
                         tx = tx_from_any(txinfo['tx'])
                         tx.deserialize()
                         self.do_save(tx)
-                        # print(f"pull_tx_infos============ save ok {txinfo['tx_hash']}")
                     except BaseException as e:
-                        # print(f"except-------- {txinfo['tx_hash'],txinfo['tx']}")
                         temp_data = {}
                         temp_data['tx_hash'] = txinfo['tx_hash']
                         temp_data['error'] = str(e)
@@ -777,7 +774,6 @@ class AndroidCommands(commands.Commands):
         try:
             if hd:
                 return self.recovery_hd_derived_wallet(xpub=self.hw_info['xpub'], hw=True, path=path)
-            print(f"xpubs=========={m, n, xpubs}")
             self.set_multi_wallet_info(name, m, n)
             xpubs_list = json.loads(xpubs)
             for xpub_info in xpubs_list:
@@ -1018,7 +1014,6 @@ class AndroidCommands(commands.Commands):
                 coins = self.wallet.get_spendable_coins(domain=None)
             else:
                 coins = self.get_coins(json.loads(customer))
-            print(f"coins=========={coins}")
             c, u, x = self.wallet.get_balance()
             if not coins and self.config.get('confirmed_only', False):
                 raise BaseException(_("Please use unconfirmed utxo."))
@@ -1063,12 +1058,6 @@ class AndroidCommands(commands.Commands):
             self._assert_wallet_isvalid()
             tx = tx_from_any(tx)
             tx.deserialize()
-            try:
-                print(f"do save tx")
-                # self.txdb.add_tx_info(self.wallet.get_addresses()[0], tx, tx.txid())
-                # self.do_save(tx)
-            except BaseException as e:
-                pass
         except Exception as e:
             raise BaseException(e)
 
@@ -1079,7 +1068,6 @@ class AndroidCommands(commands.Commands):
             if self.label_flag and self.wallet.wallet_type != "standard":
                 self.label_plugin.push_tx(self.wallet, 'createtx', tx.txid(), str(self.tx))
         except Exception as e:
-            print(f"push_tx createtx error {e}")
             pass
         json_str = json.dumps(ret_data)
         return json_str
@@ -1368,7 +1356,6 @@ class AndroidCommands(commands.Commands):
                     # response = await self.network.send_http_on_proxy("get", url, timeout=2)
                     response_json = response.json()
                 except BaseException as e:
-                    print(f"error....when get_btc_fee.....{e}")
                     pass
                     continue
                 if response_json.__contains__('fee'):
@@ -2149,7 +2136,6 @@ class AndroidCommands(commands.Commands):
                 if self.label_flag and self.wallet.wallet_type != "standard":
                     self.label_plugin.push_tx(self.wallet, 'signtx', tx.txid(), str(sign_tx))
             except BaseException as e:
-                print(f"push_tx signtx error {e}")
                 pass
             return self.get_tx_info_from_raw(sign_tx)
         except BaseException as e:
@@ -2233,7 +2219,6 @@ class AndroidCommands(commands.Commands):
             response = client.bixin_backup_device()
         except Exception as e:
             raise BaseException(e)
-        print(f"seed......{response}")
         return response
 
     def bixin_load_device(self, path='android_usb', mnemonics=None, language="en-US", label="BIXIN KEY"):
@@ -2413,7 +2398,6 @@ class AndroidCommands(commands.Commands):
 
     def is_encrypted_with_hw_device(self):
         ret = self.wallet.storage.is_encrypted_with_hw_device()
-        print(f"hw device....{ret}")
 
     def get_feature(self, path='android_usb'):
         '''
@@ -2753,7 +2737,6 @@ class AndroidCommands(commands.Commands):
             temp['addr'] = addr
             temp['derivation'] = bip39_derivation
             out[type] = temp
-        print(f"out==addr = {out}")
         return json.dumps(out)
 
     def update_backup_info(self, encrypt_seed):
@@ -3140,7 +3123,6 @@ class AndroidCommands(commands.Commands):
             elif self.coins.__contains__(coin):
                 wallet = Standard_Eth_Wallet(db, storage, config=self.config)
         addr = wallet.get_addresses()[0]
-        print(f"addre........{addr, bip39_derivation}")
         new_name = self.get_unique_path(wallet)
         wallet.storage.set_path(self._wallet_path(new_name))
         try:
@@ -3160,7 +3142,6 @@ class AndroidCommands(commands.Commands):
             raise e
         if new_seed != '':
             key = wallet.keystore.xpub
-            print(f"....create........{key}")
             self.update_backup_info(key)
         wallet_info = CreateWalletInfo.create_wallet_info(coin_type=coin, name=wallet.__str__())
         out = self.get_create_info_by_json(new_seed, wallet_info)
@@ -3357,7 +3338,6 @@ class AndroidCommands(commands.Commands):
     def recovery_import_create_hw_wallet(self, i, name, m, n, xpubs, coin='btc'):
         try:
             if coin == 'btc':
-                print(f"xpubs=========={m, n, xpubs}")
                 self.set_multi_wallet_info(name, m, n)
                 self.add_xpub(xpubs, self.hw_info['device_id'], i, self.hw_info['type'])
 
@@ -3424,7 +3404,6 @@ class AndroidCommands(commands.Commands):
                         path='bluetooth'):
         derived = DerivedInfo(self.config)
         derived.init_recovery_num()
-        type_list = [49, 44, 84]
         for derived_xpub, derived_wallet in self.derived_info.items():
             if xpub == derived_xpub:
                 for derived_info in derived_wallet:
@@ -3592,7 +3571,6 @@ class AndroidCommands(commands.Commands):
         ks = keystore.from_bip39_seed(seed, passphrase, bip39_derivation)
         db.put('keystore', ks.dump())
         if self.coins.__contains__(coin):
-            print("")
             wallet = Standard_Eth_Wallet(db, storage, config=self.config)
             wallet.wallet_type = '%s_standard' % coin
         else:
@@ -3831,7 +3809,6 @@ class AndroidCommands(commands.Commands):
                 self.label_plugin.push_tx(self.wallet, 'rbftx', self.rbf_tx.txid(), str(self.rbf_tx),
                                           tx_hash_old=tx_hash)
         except Exception as e:
-            print(f"push_tx rbftx error {e}")
             pass
         return self.rbf_tx
 
@@ -3932,7 +3909,6 @@ class AndroidCommands(commands.Commands):
                 if self.label_flag and self.wallet.wallet_type != "standard":
                     self.label_plugin.push_tx(self.wallet, 'createtx', new_tx.txid(), str(new_tx))
             except BaseException as e:
-                print(f"cpfp push_tx createtx error {e}")
                 pass
             return json.dumps(out)
         except BaseException as e:

@@ -1103,7 +1103,6 @@ class Standard_Eth_Wallet(Simple_Eth_Deterministic_Wallet):
     def derive_address(self, for_change: int, n: int) -> str:
         for_change = int(for_change)
         pubkeys = self.derive_pubkeys(for_change, n, compressed=False)
-        print(f"derive_address....{pubkeys}")
         return self.pubkeys_to_address(pubkeys[0][2:])
 
     def synchronize(self):
