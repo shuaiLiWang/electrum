@@ -664,7 +664,7 @@ class AndroidCommands(commands.Commands):
             raise BaseException(e)
         return self.wizard.get_cosigner_num()
 
-    def create_multi_wallet(self, name, hd=False, hide_type=False, coin='btc') -> str:
+    def create_multi_wallet(self, name, hd=False, hide_type=False, coin='btc', index=0) -> str:
         try:
             self._assert_daemon_running()
             self._assert_wizard_isvalid()
@@ -679,7 +679,7 @@ class AndroidCommands(commands.Commands):
             if 'btc' == coin:
                 wallet = Wallet(db, storage, config=self.config)
             else:
-                wallet = Eth_Wallet(db, storage, config=self.config)
+                wallet = Standard_Eth_Wallet(db, storage, config=self.config, index=index)
             self.check_exist_file(wallet)
             wallet.status_flag = ("btc-hw-%s-%s" % (self.m, self.n))
             wallet.hide_type = hide_type
@@ -784,7 +784,7 @@ class AndroidCommands(commands.Commands):
                 else:
                     self.add_xpub(xpub_info, account_id=self.hw_info['account_id'], type=self.hw_info['type'],
                                   coin=coin)
-            wallet_name = self.create_multi_wallet(name, hd=hd, hide_type=hide_type, coin=coin)
+            wallet_name = self.create_multi_wallet(name, hd=hd, hide_type=hide_type, coin=coin, index=self.hw_info['account_id'])
             if len(self.hw_info) != 0:
                 bip39_path = self.get_coin_derived_path(self.hw_info['account_id'], coin=coin)
                 self.update_devired_wallet_info(bip39_path, self.hw_info['xpub'], name, coin)
@@ -2488,7 +2488,8 @@ class AndroidCommands(commands.Commands):
             return xpub
         else:
             derivation = bip44_derivation(account_id, bip43_purpose=self.coins[coin]['addressType'],
-                                          coin=self.coins[coin]['coinId'])
+                                          cointype=self.coins[coin]['coinId'], coin=coin)
+            derivation = util.get_keystore_path(derivation)
             try:
                 xpub = client.get_eth_xpub(derivation)
                 self.hw_info['type'] = self.coins[coin]['addressType']
