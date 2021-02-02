@@ -786,7 +786,7 @@ class AndroidCommands(commands.Commands):
             wallet_name = self.create_multi_wallet(name, hd=hd, hide_type=hide_type, coin=coin)
             if len(self.hw_info) != 0:
                 bip39_path = self.get_coin_derived_path(self.hw_info['account_id'], coin=coin)
-                self.update_devired_wallet_info(bip39_path, self.hw_info['xpub'], name)
+                self.update_devired_wallet_info(bip39_path, self.hw_info['xpub'], name, coin)
             return wallet_name
         except BaseException as e:
             raise e
@@ -2098,9 +2098,7 @@ class AndroidCommands(commands.Commands):
         if isinstance(self.wallet.get_keystore(), Hardware_KeyStore):
             if path:
                 client = self.get_client(path=path)
-                deriv_suffix = self.wallet.get_address_index(from_address)
-                derivation = self.wallet.keystore.get_derivation_prefix()
-                address_path = "%s/%d/%d" % (derivation, *deriv_suffix)
+                address_path = self.get_derivation_path(self.wallet, from_address)
                 address_n = parse_path(address_path)
 
                 (v, r, s) = self.wallet.sign_transaction(address_n, tx_dict['nonce'], tx_dict['gasPrice'],
@@ -2959,9 +2957,12 @@ class AndroidCommands(commands.Commands):
             if derived_flag:
                 self.set_hd_wallet(wallet)
                 self.update_devired_wallet_info(bip39_derivation, self.get_hd_wallet_encode_seed(seed=seed, coin=coin),
-                                                name)
+                                                name, coin)
         except BaseException as e:
             raise e
+
+    def get_path_info(self, path, pos):
+        return path.split('/')[pos].split('\'')[0]
 
     def create(self, name, password=None, seed_type="segwit", seed=None, passphrase="", bip39_derivation=None,
                master=None, addresses=None, privkeys=None, hd=False, purpose=49, coin="btc", keystores=None,
@@ -3232,16 +3233,16 @@ class AndroidCommands(commands.Commands):
                                 '%s-derived-standard' % coin)
                         self.update_devired_wallet_info(
                             bip44_derivation(recovery_info['account_id'], bip43_purpose=self.coins[coin]['addressType'],
-                                             coin=self.coins[coin]['coinId']),
-                            recovery_info['key'], wallet.get_name())
+                                             cointype=self.coins[coin]['coinId'], coin=coin),
+                            recovery_info['key'], wallet.get_name(), coin)
                     else:
                         # if not hw:
                         #     self.btc_derived_info.update_recovery_info(recovery_info['account_id'])
                         wallet_type = 'btc-hw-derived-%s-%s' % (1, 1) if hw else (
                             'btc-derived-standard')
                         self.update_devired_wallet_info(bip44_derivation(recovery_info['account_id'], bip43_purpose=84,
-                                                                         coin=constants.net.BIP44_COIN_TYPE),
-                                                        recovery_info['key'], wallet.get_name())
+                                                                         cointype=constants.net.BIP44_COIN_TYPE, coin=coin),
+                                                        recovery_info['key'], wallet.get_name(), coin)
                     self.update_local_wallet_info(self.get_unique_path(wallet), wallet_type)
         self.recovery_wallets.clear()
 
@@ -3454,14 +3455,20 @@ class AndroidCommands(commands.Commands):
         '''
         cls._recovery_flag = flag
 
+    def get_derivation_path(self, wallet_obj, address):
+        deriv_suffix = wallet_obj.get_address_index(address)
+        derivation = wallet_obj.keystore.get_derivation_prefix()
+        address_path = "%s/%d/%d" % (derivation, *deriv_suffix)
+        return address_path
+
     def filter_wallet_with_account_is_zero(self):
         wallet_list = []
         for name, wallet_info in self.recovery_wallets.items():
             try:
                 wallet = wallet_info['wallet']
                 coin = wallet.wallet_type[0:3]
-                derivation = wallet.keystore.get_derivation_prefix()
-                account_id = int(derivation.split('/')[ACCOUNT_POS].split('\'')[0])
+                derivation = self.get_derivation_path(wallet, wallet.get_addresses()[0])
+                account_id = int(self.get_account_id(derivation, coin if coin in self.coins else 'btc'))
                 purpose = int(derivation.split('/')[PURPOSE_POS].split('\'')[0])
                 if account_id != 0:
                     continue
@@ -3554,12 +3561,13 @@ class AndroidCommands(commands.Commands):
             self.check_password(password)
         except BaseException as e:
             raise e
-        if int(bip39_derivation.split('/')[ACCOUNT_POS].split('\'')[0]) == 0:
-            purpose = int(bip39_derivation.split('/')[PURPOSE_POS].split('\'')[0])
+        account_id = int(self.get_account_id(bip39_derivation, coin))
+        if account_id == 0:
+            purpose = int(self.get_path_info(bip39_derivation, PURPOSE_POS))
             if purpose == 49:
                 name = "BTC-1"
-            elif self.coins.__contains__(coin):
-                name = "%s-1" % coin.upper()
+            elif coin in self.coins:
+                name = "%s-1" %coin.upper()
             else:
                 name = "btc-derived-%s" % purpose
         temp_path = self.get_temp_file()
@@ -3615,10 +3623,16 @@ class AndroidCommands(commands.Commands):
             self.derived_info[xpub] = derived_wallet
             self.config.set_key("derived_info", self.derived_info)
 
-    def update_devired_wallet_info(self, bip39_derivation, xpub, name):
+    def get_account_id(self, path, coin):
+        if coin in self.coins:
+            return self.get_path_info(path, INDEX_POS)
+        else:
+            return self.get_path_info(path, ACCOUNT_POS)
+
+    def update_devired_wallet_info(self, bip39_derivation, xpub, name, coin):
         wallet_info = {}
         wallet_info['name'] = name
-        wallet_info['account_id'] = bip39_derivation.split('/')[ACCOUNT_POS][:-1]
+        wallet_info['account_id'] = self.get_account_id(bip39_derivation, coin)
         if not self.derived_info.__contains__(xpub):
             derivated_wallets = []
             derivated_wallets.append(wallet_info)
