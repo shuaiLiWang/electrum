@@ -3151,7 +3151,7 @@ class AndroidCommands(commands.Commands):
 
             temp_path = self.get_temp_file()
             path = self._wallet_path(temp_path)
-            storage, db = self.wizard.create_storage(path=path, password="", hide_type=True, coin=coin)
+            storage, db = self.wizard.create_storage(path=path, password="", coin=coin)
             if storage:
                 if coin in self.coins:
                     # wallet = Eth_Wallet(db, storage, config=self.config, index=self.hw_info['account_id'])
