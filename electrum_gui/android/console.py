@@ -254,7 +254,7 @@ class AndroidCommands(commands.Commands):
         self.rbf_tx = ""
         self.m = 0
         self.n = 0
-        self.token_list_by_chain = OrderedDict()
+        self.token_list_by_chain = {}
         self.config.set_key("auto_connect", True, True)
         global ticker
         ticker = Ticker(5.0, self.ticker_action)
@@ -2120,7 +2120,6 @@ class AndroidCommands(commands.Commands):
                 "logoURI": "",
                 "rank": 0
         """
-
         token_info = PyWalib.get_token_info("", contract_address)
         return json.dumps(token_info)
 
@@ -2132,10 +2131,9 @@ class AndroidCommands(commands.Commands):
         chain_code = PyWalib.get_chain_code()
         token_info = self.token_list_by_chain.get(chain_code)
         if token_info is None:
-            token_info = {
-                token["address"].lower(): token
-                for token in read_json(f"{chain_code}_token_list.json", {}).get("tokens", ())
-            }
+            token_info = OrderedDict()
+            for token in read_json(f"{chain_code}_token_list.json", {}).get("tokens", ()):
+                token_info[token['address'].lower()] = token
             self.token_list_by_chain[chain_code] = token_info
 
         return json.dumps(list(self.token_list_by_chain.values()))
