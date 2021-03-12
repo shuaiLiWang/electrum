@@ -59,6 +59,7 @@ class TrezorManager(object):
         'get_passphrase_status',
         'get_feature',
         'firmware_update',
+        'ensure_client',
     )
 
     def __init__(self, plugin_manager: electrum_plugin.Plugins) -> None:
