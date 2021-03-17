@@ -253,9 +253,7 @@ class TrezorManager(object):
         if use_se:
             self.apply_settings(path, use_se=True)
         strength = 256 if stronger_mnemonic else 128
-        response = self._bridge(
-            path, 'reset_device', language=language, passphrase_protection=True, label=label, strength=strength
-        )
+        response = self._bridge(path, 'reset_device', language=language, label=label, strength=strength)
         return 1 if response == "Device successfully initialized" else 0
 
     def reset_pin(self, path: str = "android_usb") -> int:
