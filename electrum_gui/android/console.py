@@ -3150,10 +3150,13 @@ class AndroidCommands(commands.Commands):
                     continue
                 if coin in self.coins or purpose == 49:
                     exist = 1 if self.daemon.get_wallet(self._wallet_path(wallet_id)) is not None else 0
-                    wallet_info = CreateWalletInfo.create_wallet_info(
-                        coin_type="btc" if purpose == 49 else coin, name=str(wallet), exist=exist
-                    )
-                    wallet_list.append(wallet_info[0])
+                    wallet_info = {
+                        'coin_type': coin,
+                        'name': wallet.identity,
+                        'exist': exist,
+                        'label': wallet.get_name(),
+                    }
+                    wallet_list.append(wallet_info)
             except BaseException as e:
                 raise e
         return wallet_list
