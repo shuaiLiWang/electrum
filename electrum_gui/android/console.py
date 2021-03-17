@@ -472,9 +472,6 @@ class AndroidCommands(commands.Commands):
         t1 = threading.Thread(target=self.daemon_action)
         t1.setDaemon(True)
         t1.start()
-        # import time
-        # time.sleep(1.0)
-        print("parent thread")
 
     def status(self):
         """Get daemon status"""
@@ -582,7 +579,6 @@ class AndroidCommands(commands.Commands):
             self.wizard = None
         self.wizard = MutiBase.MutiBase(self.config)
         path = self._wallet_path(name)
-        print("console:set_multi_wallet_info:path = %s---------" % path)
         self.wizard.set_multi_wallet_info(path, m, n)
         self.m = m
         self.n = n
@@ -692,7 +688,6 @@ class AndroidCommands(commands.Commands):
                 self.wallet_context.set_wallet_type(wallet.identity, wallet_type)
             self.wallet = wallet
             self.wallet_name = wallet.basename()
-            print("console:create_multi_wallet:wallet_name = %s---------" % self.wallet_name)
             # self.select_wallet(self.wallet_name)
             # if self.label_flag and not hide_type:
             #     wallet_name = ""
@@ -1025,11 +1020,8 @@ class AndroidCommands(commands.Commands):
             self.wallet.set_label(tx.txid(), message)
             size = tx.estimated_size()
             fee = tx.get_fee()
-            print("feee-----%s size =%s" % (fee, size))
             self.tx = tx
-            # print("console:mkun:tx====%s" % self.tx)
             tx_details = self.wallet.get_tx_info(tx)
-            print("tx_details 1111111 = %s" % json.dumps(tx_details))
 
             fee_info_list = self.get_block_info()
             block = helpers.get_best_block_by_feerate(float(feerate) * 1000, fee_info_list)
@@ -1286,7 +1278,6 @@ class AndroidCommands(commands.Commands):
                             'show_status': [1, _("Unconfirmed")]}
         """
         try:
-            print("console:get_tx_info_from_raw:tx===%s" % raw_tx)
             tx = self.recover_tx_info(raw_tx)
         except Exception as e:
             tx = None
@@ -2265,7 +2256,6 @@ class AndroidCommands(commands.Commands):
             tx = tx_from_any(tx)
             tx.deserialize()
             sign_tx = self.wallet.sign_transaction(tx, password)
-            print("=======sign_tx.serialize=%s" % sign_tx.serialize_as_bytes().hex())
             try:
                 if self.label_flag and self.wallet.wallet_type != "standard":
                     self.label_plugin.push_tx(self.wallet, "signtx", tx.txid(), str(sign_tx))
@@ -2436,19 +2426,6 @@ class AndroidCommands(commands.Commands):
             raise BaseException(NotSupportExportSeed())
         return self.wallet.has_seed()
 
-    # def check_seed(self, check_seed, password):
-    #     try:
-    #         self._assert_wallet_isvalid()
-    #         if not self.wallet.has_seed():
-    #             raise BaseException('This wallet has no seed')
-    #         keystore = self.wallet.get_keystore()
-    #         seed = keystore.get_seed(password)
-    #         if seed != check_seed:
-    #             raise BaseException("pair seed failed")
-    #         print("pair seed successfule.....")
-    #     except BaseException as e:
-    #         raise BaseException(e)
-
     def is_seed(self, x):
         try:
             seed_flag = False
@@ -2572,8 +2549,6 @@ class AndroidCommands(commands.Commands):
         if seed is None:
             seed = Mnemonic("english").generate(strength=strength)
             new_seed = seed
-            print('Your wallet generation seed is:\n"%s"' % seed)
-            print("seed type = %s" % type(seed))
 
         create_coin_list = json.loads(create_coin)
         if "btc" in create_coin_list:
@@ -2779,7 +2754,6 @@ class AndroidCommands(commands.Commands):
                     create(name, password, seed='pottery curtain belt canal cart include raise receive sponsor vote embody offer', coin="eth")
 
         """
-        print("CREATE in....name = %s" % name)
         try:
             if self.get_wallet_num() == 0:
                 self.check_pw_wallet = None
@@ -2828,8 +2802,6 @@ class AndroidCommands(commands.Commands):
             if seed is None:
                 seed = Mnemonic("english").generate(strength=strength)
                 new_seed = True
-                print('Your wallet generation seed is:\n"%s"' % seed)
-                print("seed type = %s" % type(seed))
             if coin == "btc":
                 wallet = Standard_Wallet.from_seed_or_bip39(
                     coin, self.config, seed, passphrase, bip44_derivation(0, purpose)
@@ -3509,7 +3481,6 @@ class AndroidCommands(commands.Commands):
 
     def create_bump_fee(self, tx_hash, new_fee_rate):
         try:
-            print("create bump fee tx_hash---------=%s" % tx_hash)
             tx = self.wallet.db.get_transaction(tx_hash)
             if not tx:
                 return False
@@ -3870,17 +3841,6 @@ class AndroidCommands(commands.Commands):
                 return json.dumps(info, cls=DecimalEncoder)
             else:
                 c, u, x = self.wallet.get_balance()
-                print("console.select_wallet %s %s %s==============" % (c, u, x))
-                print(
-                    "console.select_wallet[%s] blance = %s wallet_type = %s use_change=%s add = %s "
-                    % (
-                        self.wallet.get_name(),
-                        self.format_amount_and_units(c + u),
-                        self.wallet.wallet_type,
-                        self.wallet.use_change,
-                        self.wallet.get_addresses(),
-                    )
-                )
                 util.trigger_callback("wallet_updated", self.wallet)
 
                 balance = c + u
