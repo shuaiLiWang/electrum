@@ -353,6 +353,12 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         if self.storage and not self.hide_type:
             self.db.write(self.storage)
 
+    def set_key_pool_size(self):
+        if self.gap_limit != 100 and self.gap_limit_for_change != 100:
+            self.gap_limit = 100
+            self.gap_limit_for_change = 100
+            self.synchronize()
+
     def save_backup(self):
         backup_dir = get_backup_dir(self.config)
         if backup_dir is None:

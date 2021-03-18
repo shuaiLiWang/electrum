@@ -2939,6 +2939,8 @@ class AndroidCommands(commands.Commands):
                             coin,
                         )
                     self.wallet_context.set_wallet_type(wallet.identity, wallet_type)
+        for name, info in self.recovery_wallets.items():
+            info["wallet"].stop()
         self.recovery_wallets.clear()
 
     def delete_derived_wallet(self):
@@ -3722,7 +3724,6 @@ class AndroidCommands(commands.Commands):
 
         self.wallet = self.daemon.get_wallet(self._wallet_path(name))
         self.wallet.use_change = self.config.get("use_change", False)
-
         coin = self.wallet.coin
         if coin in self.coins:
             PyWalib.set_server(self.coins[coin])
@@ -3730,6 +3731,7 @@ class AndroidCommands(commands.Commands):
 
             info = {"name": name, "label": self.wallet.get_name(), "wallets": contract_info}
         else:
+            self.wallet.set_key_pool_size()
             c, u, x = self.wallet.get_balance()
             util.trigger_callback("wallet_updated", self.wallet)
 
@@ -3816,7 +3818,6 @@ class AndroidCommands(commands.Commands):
                 self.wallet = self.daemon.get_wallet(self._wallet_path(name))
 
             self.wallet.use_change = self.config.get("use_change", False)
-
             coin = self.wallet.coin
             if coin in self.coins:
                 PyWalib.set_server(self.coins[coin])
