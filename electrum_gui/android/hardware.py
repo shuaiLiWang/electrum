@@ -113,7 +113,7 @@ class TrezorManager(object):
 
     def get_device_id(self, path: str) -> str:
         client = self._get_client(path)
-        return client.features.device_id
+        return client.features.serial_num
 
     def get_xpub(self, path: str, derivation: str, _type: str, creating: bool) -> str:
         return self._bridge(path, 'get_xpub', derivation, _type, creating=creating)
