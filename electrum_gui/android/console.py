@@ -2608,7 +2608,7 @@ class AndroidCommands(commands.Commands):
         create_coin_list = json.loads(create_coin)
         if "btc" in create_coin_list:
             wallet_info = self.create(
-                "BTC-1",
+                "BTC",
                 password,
                 seed=seed,
                 passphrase=passphrase,
@@ -2619,7 +2619,7 @@ class AndroidCommands(commands.Commands):
 
         for coin, info in self.coins.items():
             if coin in create_coin_list:
-                name = "%s-1" % coin.upper()
+                name = "%s" % coin.upper()
                 bip39_derivation = bip44_eth_derivation(0, info["addressType"], cointype=info["coinId"])
                 wallet_info = self.create(
                     name,
