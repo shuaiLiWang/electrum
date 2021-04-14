@@ -2882,7 +2882,12 @@ class AndroidCommands(commands.Commands):
         if bip39_derivation is not None:
             self.set_hd_wallet(wallet)
             self.update_devired_wallet_info(
-                bip39_derivation, self.get_hd_wallet_encode_seed(seed=seed, coin=wallet.coin), wallet.name, wallet.coin
+                bip39_derivation,
+                self.get_hd_wallet_encode_seed(
+                    seed=seed, coin=wallet.coin, type=helpers.get_path_info(bip39_derivation, PURPOSE_POS)
+                ),
+                wallet.name,
+                wallet.coin,
             )
 
     def _get_derived_account_id(self, xpub, hw=False):
@@ -2907,7 +2912,7 @@ class AndroidCommands(commands.Commands):
         """
         account_id = 0
         if not hw and derived:
-            derive_key = self.get_hd_wallet_encode_seed(coin=coin)
+            derive_key = self.get_hd_wallet_encode_seed(coin=coin, type=str(purpose))
             account_id = self._get_derived_account_id(derive_key)
         elif hw:
             xpub = self.get_xpub_from_hw(path=path, coin=coin)
@@ -3344,14 +3349,14 @@ class AndroidCommands(commands.Commands):
 
         return self.hd_wallet
 
-    def get_hd_wallet_encode_seed(self, seed=None, coin="", passphrase=""):
+    def get_hd_wallet_encode_seed(self, seed=None, coin="", passphrase="", type=""):
         if seed is not None:
             path = bip44_derivation(0, 84)
             ks = keystore.from_bip39_seed(seed, passphrase, path)
             self.config.set_key("current_hd_xpub", ks.xpub)
-            return ks.xpub + coin.lower()
+            return ks.xpub + coin.lower() + type
         else:
-            return self.config.get("current_hd_xpub", "") + coin.lower()
+            return self.config.get("current_hd_xpub", "") + coin.lower() + type
 
     @classmethod
     def _set_recovery_flag(cls, flag=False):
@@ -3391,42 +3396,39 @@ class AndroidCommands(commands.Commands):
     ):
         eths_xpub = None
 
-        def recovery_wallet(self, coin="btc") -> None:
+        def recovery_wallet(self, purpose="", coin="btc") -> None:
             def recovery_create_subfun(self, coin, account_id, name) -> None:
                 nonlocal eths_xpub
                 try:
-                    if coin == "btc":
-                        purposes = [49, 44, 84]
-                    elif coin in self.coins:
-                        purposes = [self.coins[coin]["addressType"]]
+                    if coin in self.coins:
                         if hw and eths_xpub:
                             self.recovery_import_create_hw_wallet(account_id, name, 1, 1, eths_xpub, coin=coin)
                             return
                     else:
                         raise Exception(_("unknown coin type provided"))
-                    for purpose in purposes:
-                        if not AndroidCommands._recovery_flag:
-                            self.recovery_wallets.clear()
-                            AndroidCommands._set_recovery_flag(True)
-                            raise UserCancel()
-                        if hw:
-                            _type = PURPOSE_TO_ADDRESS_TYPE.get(purpose, "")
-                            xpub = self.get_xpub_from_hw(
-                                path=path, _type=_type, account_id=account_id, coin=coin, from_recovery=True
-                            )
-                            if coin != "btc":
-                                eths_xpub = xpub
-                            self.recovery_import_create_hw_wallet(account_id, name, 1, 1, xpub, coin=coin)
-                        else:
-                            bip39_derivation = self.get_coin_derived_path(account_id, coin, purpose=purpose)
-                            self.recovery_create(
-                                name,
-                                seed,
-                                password=password,
-                                bip39_derivation=bip39_derivation,
-                                passphrase=passphrase,
-                                coin=coin,
-                            )
+
+                    if not AndroidCommands._recovery_flag:
+                        self.recovery_wallets.clear()
+                        AndroidCommands._set_recovery_flag(True)
+                        raise UserCancel()
+                    if hw:
+                        _type = PURPOSE_TO_ADDRESS_TYPE.get(purpose, "")
+                        xpub = self.get_xpub_from_hw(
+                            path=path, _type=_type, account_id=account_id, coin=coin, from_recovery=True
+                        )
+                        if coin != "btc":
+                            eths_xpub = xpub
+                        self.recovery_import_create_hw_wallet(account_id, name, 1, 1, xpub, coin=coin)
+                    else:
+                        bip39_derivation = self.get_coin_derived_path(account_id, coin, purpose=purpose)
+                        self.recovery_create(
+                            name,
+                            seed,
+                            password=password,
+                            bip39_derivation=bip39_derivation,
+                            passphrase=passphrase,
+                            coin=coin,
+                        )
                 except BaseException as e:
                     raise e
 
@@ -3447,12 +3449,15 @@ class AndroidCommands(commands.Commands):
                 with PyWalib.override_server(info):
                     recovery_wallet(self, coin=coin)
         else:
-            xpub = self.get_hd_wallet_encode_seed(seed=seed, coin="btc")
-            recovery_wallet(self)
+            for type in ["49", "44", "84"]:
+                xpub = self.get_hd_wallet_encode_seed(seed=seed, coin="btc", type=type)
+                recovery_wallet(self, purpose=type)
+
             for coin, info in self.coins.items():
-                xpub = self.get_hd_wallet_encode_seed(seed=seed, coin=coin)
+                type = info["addressType"]
+                xpub = self.get_hd_wallet_encode_seed(seed=seed, coin=coin, type=type)
                 with PyWalib.override_server(info):
-                    recovery_wallet(self, coin=coin)
+                    recovery_wallet(self, coin=coin, purpose=type)
 
         recovery_list = self.filter_wallet()
         wallet_data = self.filter_wallet_with_account_is_zero()
@@ -3496,13 +3501,13 @@ class AndroidCommands(commands.Commands):
         seed = self.get_hd_wallet().get_seed(password)
         coin_type = constants.net.BIP44_COIN_TYPE if coin == "btc" else self.coins[coin]["coinId"]
         purpose = purpose if coin == "btc" else self.coins[coin]["addressType"]
-        encode_seed = self.get_hd_wallet_encode_seed(seed=seed, coin=coin)
+        encode_seed = self.get_hd_wallet_encode_seed(seed=seed, coin=coin, type=str(purpose))
         account_id = self._get_derived_account_id(encode_seed)
 
         if coin in self.coins:
-            derivat_path = bip44_eth_derivation(account_id, purpose, cointype=coin_type)
+            derivat_path = bip44_eth_derivation(account_id, int(purpose), cointype=coin_type)
         else:
-            derivat_path = bip44_derivation(account_id, purpose)
+            derivat_path = bip44_derivation(account_id, int(purpose))
         return self.create(name, password, seed=seed, bip39_derivation=derivat_path, strength=strength, coin=coin)
 
     def recovery_create(self, name, seed, password, bip39_derivation, passphrase="", coin="btc"):
@@ -3511,8 +3516,8 @@ class AndroidCommands(commands.Commands):
         except BaseException as e:
             raise e
         account_id = int(self.get_account_id(bip39_derivation, coin))
+        purpose = int(helpers.get_path_info(bip39_derivation, PURPOSE_POS))
         if account_id == 0:
-            purpose = int(helpers.get_path_info(bip39_derivation, PURPOSE_POS))
             if purpose == 49:
                 name = "BTC-1"
             elif coin in self.coins:
@@ -3539,7 +3544,11 @@ class AndroidCommands(commands.Commands):
         wallet.coin = coin
         wallet.storage.set_path(self._wallet_path(wallet.identity))
         self.recovery_wallets[wallet.identity] = self.update_recovery_wallet(
-            self.get_hd_wallet_encode_seed(seed=seed, coin=coin), wallet, bip39_derivation, name, coin
+            self.get_hd_wallet_encode_seed(seed=seed, coin=coin, type=str(purpose)),
+            wallet,
+            bip39_derivation,
+            name,
+            coin,
         )
         wallet.update_password(old_pw=None, new_pw=password, str_pw=self.android_id, encrypt_storage=True)
         if coin == "btc":
@@ -3552,8 +3561,16 @@ class AndroidCommands(commands.Commands):
         :param coin:btc/eth as string
         :return: num as int
         """
-        xpub = self.get_hd_wallet_encode_seed(coin=coin.lower())
-        return self.wallet_context.get_derived_num(xpub)
+        derived_num = 0
+        if coin.lower() == "btc":
+            for type in ["49", "84", "44"]:
+                xpub = self.get_hd_wallet_encode_seed(coin=coin.lower(), type=type)
+                derived_num += self.wallet_context.get_derived_num(xpub)
+        elif coin.lower() in self.coins:
+            type = self.coins[coin.lower()]["addressType"]
+            xpub = self.get_hd_wallet_encode_seed(coin=coin.lower(), type=type)
+            derived_num = self.wallet_context.get_derived_num(xpub)
+        return derived_num
 
     def delete_devired_wallet_info(self, wallet_obj, hw=False):
         derivation = wallet_obj.get_derivation_path(wallet_obj.get_addresses()[0])
@@ -3566,7 +3583,8 @@ class AndroidCommands(commands.Commands):
             else:
                 xpub = wallet_obj.keystore.xpub + coin.lower()
         else:
-            xpub = self.get_hd_wallet_encode_seed(coin=coin)
+            purpose = helpers.get_path_info(wallet_obj.get_derivation_path(), PURPOSE_POS)
+            xpub = self.get_hd_wallet_encode_seed(coin=coin, type=purpose)
 
         self.wallet_context.remove_derived_wallet(xpub, account_id)
 
