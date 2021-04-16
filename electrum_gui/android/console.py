@@ -2527,7 +2527,7 @@ class AndroidCommands(commands.Commands):
         :coin: btc/eth as string
         :return: xpub as string
         """
-        xpub = self.get_xpub_from_hw(path=path, _type="p2wpkh", coin=coin)
+        xpub = self.get_xpub_from_hw(path=path, _type=_type, coin=coin)
         self.hw_info["xpub"] = xpub
         if bip39_derivation is None:
             list_info = self.get_derived_list(xpub + coin.lower(), hw=True)
@@ -2915,7 +2915,7 @@ class AndroidCommands(commands.Commands):
             derive_key = self.get_hd_wallet_encode_seed(coin=coin, type=str(purpose))
             account_id = self._get_derived_account_id(derive_key)
         elif hw:
-            xpub = self.get_xpub_from_hw(path=path, coin=coin)
+            xpub = self.get_xpub_from_hw(path=path, coin=coin, _type=PURPOSE_TO_ADDRESS_TYPE.get(purpose, ""))
             account_id = self._get_derived_account_id(xpub + coin.lower(), hw=hw)
 
         if coin.lower() == 'btc':
