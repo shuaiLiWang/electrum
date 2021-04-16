@@ -2933,7 +2933,7 @@ class AndroidCommands(commands.Commands):
         keystores=None,
         keystore_password=None,
         strength=128,
-        customized_path=False,
+        is_customized_path=False,
     ):
 
         wallet = None
@@ -2959,7 +2959,7 @@ class AndroidCommands(commands.Commands):
                 wallet = Imported_Eth_Wallet.from_keystores(coin, self.config, keystores, keystore_password)
             else:
                 wallet = Imported_Eth_Wallet.from_privkeys(coin, self.config, privkeys)
-        elif bip39_derivation is not None and seed is not None and not customized_path:
+        elif bip39_derivation is not None and seed is not None and not is_customized_path:
             wallet_type = f"{coin}-derived-standard"
             if coin == "btc":
                 wallet = Standard_Wallet.from_seed_or_bip39(coin, self.config, seed, passphrase, bip39_derivation)
@@ -2967,7 +2967,7 @@ class AndroidCommands(commands.Commands):
                 derivation = util.get_keystore_path(bip39_derivation)
                 index = int(helpers.get_path_info(bip39_derivation, INDEX_POS))
                 wallet = Standard_Eth_Wallet.from_seed_or_bip39(coin, index, self.config, seed, passphrase, derivation)
-        elif bip39_derivation is not None and customized_path:
+        elif bip39_derivation is not None and is_customized_path:
             if seed is None:
                 seed = Mnemonic("english").generate(strength=strength)
                 new_seed = True
@@ -3038,7 +3038,7 @@ class AndroidCommands(commands.Commands):
         keystores=None,
         keystore_password=None,
         strength=128,
-        customized_path=False,
+        is_customized_path=False,
     ):
         """
         Create or restore a new wallet
@@ -3056,6 +3056,7 @@ class AndroidCommands(commands.Commands):
         :param coin:"btc"/"eth" as string to specify whether to create a BTC/ETH wallet
         :param keystores:as string for ETH only
         :param strength:Length of the　Mnemonic word as (128/256)
+        :param is_customized_path: Set to true when the user-defined path is modified
         :return: json like {'seed':''
                             'wallet_info':''
                             'derived_info':''}
@@ -3100,7 +3101,7 @@ class AndroidCommands(commands.Commands):
             coin=coin,
             keystores=keystores,
             keystore_password=keystore_password,
-            customized_path=customized_path,
+            is_customized_path=is_customized_path,
         )
 
         self.create_new_wallet_update(
