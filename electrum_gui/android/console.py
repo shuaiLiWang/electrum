@@ -2884,7 +2884,7 @@ class AndroidCommands(commands.Commands):
             self.update_devired_wallet_info(
                 bip39_derivation,
                 self.get_hd_wallet_encode_seed(
-                    seed=seed, coin=wallet.coin, type=helpers.get_path_info(bip39_derivation, PURPOSE_POS)
+                    seed=seed, coin=wallet.coin, purpose=helpers.get_path_info(bip39_derivation, PURPOSE_POS)
                 ),
                 wallet.name,
                 wallet.coin,
@@ -2900,7 +2900,7 @@ class AndroidCommands(commands.Commands):
             account_id = 0
         return account_id
 
-    def get_default_show_path(self, hw=False, coin=None, derived=False, purpose=None, path="android_usb"):
+    def get_default_show_path(self, hw=False, coin=None, derived=False, purpose="49", path="android_usb"):
         """
         Get the default path for creating a wallet
         :param hw: if true, it means that you currently need to create a hardware wallet
@@ -2912,10 +2912,10 @@ class AndroidCommands(commands.Commands):
         """
         account_id = 0
         if not hw and derived:
-            derive_key = self.get_hd_wallet_encode_seed(coin=coin, type=str(purpose))
+            derive_key = self.get_hd_wallet_encode_seed(coin=coin, purpose=str(purpose))
             account_id = self._get_derived_account_id(derive_key)
         elif hw:
-            xpub = self.get_xpub_from_hw(path=path, coin=coin, _type=PURPOSE_TO_ADDRESS_TYPE.get(purpose, ""))
+            xpub = self.get_xpub_from_hw(path=path, coin=coin, _type=PURPOSE_TO_ADDRESS_TYPE.get(purpose, "p2wpkh"))
             account_id = self._get_derived_account_id(xpub + coin.lower(), hw=hw)
 
         if coin.lower() == 'btc':
@@ -3349,14 +3349,14 @@ class AndroidCommands(commands.Commands):
 
         return self.hd_wallet
 
-    def get_hd_wallet_encode_seed(self, seed=None, coin="", passphrase="", type=""):
+    def get_hd_wallet_encode_seed(self, seed=None, coin="", passphrase="", purpose=""):
         if seed is not None:
             path = bip44_derivation(0, 84)
             ks = keystore.from_bip39_seed(seed, passphrase, path)
             self.config.set_key("current_hd_xpub", ks.xpub)
-            return ks.xpub + coin.lower() + type
+            return ks.xpub + coin.lower() + purpose
         else:
-            return self.config.get("current_hd_xpub", "") + coin.lower() + type
+            return self.config.get("current_hd_xpub", "") + coin.lower() + purpose
 
     @classmethod
     def _set_recovery_flag(cls, flag=False):
@@ -3449,15 +3449,15 @@ class AndroidCommands(commands.Commands):
                 with PyWalib.override_server(info):
                     recovery_wallet(self, coin=coin)
         else:
-            for type in ["49", "44", "84"]:
-                xpub = self.get_hd_wallet_encode_seed(seed=seed, coin="btc", type=type)
-                recovery_wallet(self, purpose=type)
+            for add_type in ["49", "44", "84"]:
+                xpub = self.get_hd_wallet_encode_seed(seed=seed, coin="btc", purpose=add_type)
+                recovery_wallet(self, purpose=add_type)
 
             for coin, info in self.coins.items():
-                type = info["addressType"]
-                xpub = self.get_hd_wallet_encode_seed(seed=seed, coin=coin, type=type)
+                add_type = info["addressType"]
+                xpub = self.get_hd_wallet_encode_seed(seed=seed, coin=coin, purpose=add_type)
                 with PyWalib.override_server(info):
-                    recovery_wallet(self, coin=coin, purpose=type)
+                    recovery_wallet(self, coin=coin, purpose=add_type)
 
         recovery_list = self.filter_wallet()
         wallet_data = self.filter_wallet_with_account_is_zero()
@@ -3501,7 +3501,7 @@ class AndroidCommands(commands.Commands):
         seed = self.get_hd_wallet().get_seed(password)
         coin_type = constants.net.BIP44_COIN_TYPE if coin == "btc" else self.coins[coin]["coinId"]
         purpose = purpose if coin == "btc" else self.coins[coin]["addressType"]
-        encode_seed = self.get_hd_wallet_encode_seed(seed=seed, coin=coin, type=str(purpose))
+        encode_seed = self.get_hd_wallet_encode_seed(seed=seed, coin=coin, purpose=str(purpose))
         account_id = self._get_derived_account_id(encode_seed)
 
         if coin in self.coins:
@@ -3544,7 +3544,7 @@ class AndroidCommands(commands.Commands):
         wallet.coin = coin
         wallet.storage.set_path(self._wallet_path(wallet.identity))
         self.recovery_wallets[wallet.identity] = self.update_recovery_wallet(
-            self.get_hd_wallet_encode_seed(seed=seed, coin=coin, type=str(purpose)),
+            self.get_hd_wallet_encode_seed(seed=seed, coin=coin, purpose=str(purpose)),
             wallet,
             bip39_derivation,
             name,
@@ -3562,13 +3562,14 @@ class AndroidCommands(commands.Commands):
         :return: num as int
         """
         derived_num = 0
-        if coin.lower() == "btc":
-            for type in ["49", "84", "44"]:
-                xpub = self.get_hd_wallet_encode_seed(coin=coin.lower(), type=type)
+        coin = coin.lower()
+        if coin == "btc":
+            for add_type in ["49", "84", "44"]:
+                xpub = self.get_hd_wallet_encode_seed(coin=coin, purpose=add_type)
                 derived_num += self.wallet_context.get_derived_num(xpub)
-        elif coin.lower() in self.coins:
-            type = self.coins[coin.lower()]["addressType"]
-            xpub = self.get_hd_wallet_encode_seed(coin=coin.lower(), type=type)
+        elif coin in self.coins:
+            add_type = self.coins[coin]["addressType"]
+            xpub = self.get_hd_wallet_encode_seed(coin=coin, purpose=add_type)
             derived_num = self.wallet_context.get_derived_num(xpub)
         return derived_num
 
@@ -3584,7 +3585,7 @@ class AndroidCommands(commands.Commands):
                 xpub = wallet_obj.keystore.xpub + coin.lower()
         else:
             purpose = helpers.get_path_info(wallet_obj.get_derivation_path(), PURPOSE_POS)
-            xpub = self.get_hd_wallet_encode_seed(coin=coin, type=purpose)
+            xpub = self.get_hd_wallet_encode_seed(coin=coin, purpose=purpose)
 
         self.wallet_context.remove_derived_wallet(xpub, account_id)
 
