@@ -503,6 +503,15 @@ class AndroidCommands(commands.Commands):
                 wallet.start_network(self.network)
             if self.wallet_context.is_hd(name):
                 self.set_hd_wallet(wallet)
+                bip39_derivation = wallet.get_derivation_path(wallet.get_addresses()[0])
+                self.update_devired_wallet_info(
+                    bip39_derivation,
+                    self.get_hd_wallet_encode_seed(
+                        coin=wallet.coin, purpose=helpers.get_path_info(bip39_derivation, PURPOSE_POS)
+                    ),
+                    wallet.name,
+                    wallet.coin,
+                )
             self.daemon.add_wallet(wallet)
         return wallet
 
@@ -3568,7 +3577,7 @@ class AndroidCommands(commands.Commands):
                 xpub = self.get_hd_wallet_encode_seed(coin=coin, purpose=add_type)
                 derived_num += self.wallet_context.get_derived_num(xpub)
         elif coin in self.coins:
-            add_type = self.coins[coin]["addressType"]
+            add_type = str(self.coins[coin]["addressType"])
             xpub = self.get_hd_wallet_encode_seed(coin=coin, purpose=add_type)
             derived_num = self.wallet_context.get_derived_num(xpub)
         return derived_num
