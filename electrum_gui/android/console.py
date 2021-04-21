@@ -3540,6 +3540,21 @@ class AndroidCommands(commands.Commands):
             wallet.start_network(self.daemon.network)
         wallet.save_db()
 
+    def get_wallet_derivation_path(self, address: str) -> str:
+        """
+        Get the current wallet derivation path
+        :return: path as string
+        """
+        self._assert_wallet_isvalid()
+        derivation_path = self.wallet.get_derivation_path(address)
+        return json.dumps(
+            {
+                "coin": self.wallet.coin,
+                "path": derivation_path,
+                "type": helpers.get_path_info(derivation_path, PURPOSE_POS),
+            }
+        )
+
     def get_devired_num(self, coin="btc"):
         """
         Get devired HD num by app
