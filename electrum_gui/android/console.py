@@ -3224,7 +3224,7 @@ class AndroidCommands(commands.Commands):
                     if -1 != info["type"].find("-derived-") and -1 == info["type"].find("-hw-"):
                         key_in_daemon = self._wallet_path(wallet_id)
                         wallet_obj = self.daemon.get_wallet(key_in_daemon)
-                        self.delete_wallet_devired_info(wallet_obj)
+                        self.delete_wallet_derived_info(wallet_obj)
                         self.delete_wallet_from_deamon(key_in_daemon)
                         self.wallet_context.remove_type_info(wallet_id)
                 except Exception as e:
@@ -4241,8 +4241,15 @@ class AndroidCommands(commands.Commands):
     def has_history_wallet(self, wallet_obj):
         coin = wallet_obj.coin
         if coin in self.coins:
-            txids = self.pywalib.get_all_txid(wallet_obj.get_addresses()[0])
-            return bool(txids)
+            with self.pywalib.override_server(self.coins[coin]):
+                try:
+                    address_info = self.pywalib.get_address(wallet_obj.get_addresses()[0])
+                except Exception:
+                    address_info = None
+            if address_info is not None and address_info.existing:
+                return True
+            else:
+                return False
         elif coin == "btc":
             history = wallet_obj.get_history()
             return bool(history)
@@ -4272,7 +4279,7 @@ class AndroidCommands(commands.Commands):
         except BaseException as e:
             raise e
 
-    def delete_wallet_devired_info(self, wallet_obj, hw=False):
+    def delete_wallet_derived_info(self, wallet_obj, hw=False):
         have_tx = self.has_history_wallet(wallet_obj)
         if not have_tx:
             # delete wallet info from config
@@ -4298,7 +4305,7 @@ class AndroidCommands(commands.Commands):
             else:
                 if self.wallet_context.is_derived(name):
                     hw = self.wallet_context.is_hw(name)
-                    self.delete_wallet_devired_info(wallet, hw=hw)
+                    self.delete_wallet_derived_info(wallet, hw=hw)
                 self.delete_wallet_from_deamon(self._wallet_path(name))
                 self.wallet_context.remove_type_info(name)
             # os.remove(self._wallet_path(name))
