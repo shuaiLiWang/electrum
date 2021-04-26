@@ -1083,7 +1083,7 @@ class AndroidCommands(commands.Commands):
         except Exception as e:
             raise BaseException(e)
 
-        ret_data = {"tx": str(self.tx)}
+        ret_data = {"tx": str(tx)}
         try:
             if self.label_flag and self.wallet.wallet_type != "standard":
                 self.label_plugin.push_tx(self.wallet, "createtx", tx.txid(), str(self.tx))
