@@ -4181,6 +4181,15 @@ class AndroidCommands(commands.Commands):
         chain_code = f"t{coin}" if PyWalib.chain_type == "testnet" else coin
         return chain_code
 
+    def set_wallet_location_info(self, wallet_location_info: list, wallet_type="btc") -> None:
+        """
+        Save a user-defined order of wallets according to the type of wallet
+        :param wallet_location_info: customised wallet order
+        :param wallet_type: hd/hw/btc/eth/bsc/heco
+        :return: None
+        """
+        self.wallet_context.set_wallet_location_info(wallet_location_info, wallet_type)
+
     def list_wallets(self, type_=None):
         """
         List available wallets
