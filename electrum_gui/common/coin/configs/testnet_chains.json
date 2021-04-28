@@ -116,7 +116,7 @@
     "clients": [
       {
         "class": "Geth",
-        "url": "https://exchaintest.okexcn.com/"
+        "url": "https://exchaintestrpc.okex.org"
       }
     ],
     "chain_affinity": "eth",

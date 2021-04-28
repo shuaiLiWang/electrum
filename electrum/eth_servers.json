@@ -39,8 +39,8 @@
     "addressType": 44,
     "symbol": "OKT",
     "Provider": [
-      {"mainnet": "https://exchain.okexcn.com/", "chainid": "66"},
-      {"testnet": "https://exchaintest.okexcn.com/", "chainid": "65"}
+      {"mainnet": "https://exchainrpc.okex.org/", "chainid": "66"},
+      {"testnet": "https://exchaintestrpc.okex.org/", "chainid": "65"}
     ],
     "GasServer": ""
   }

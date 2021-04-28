@@ -169,7 +169,7 @@
     "clients": [
       {
         "class": "Geth",
-        "url": "https://exchain.okexcn.com/"
+        "url": "https://exchainrpc.okex.org"
       }
     ],
     "chain_affinity": "eth",
