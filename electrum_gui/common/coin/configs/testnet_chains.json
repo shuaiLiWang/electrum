@@ -68,6 +68,10 @@
     "clients": [
       {
         "class": "Geth",
+        "url": "https://testnode.onekey.so/bsc"
+      },
+      {
+        "class": "Geth",
         "url": "https://data-seed-prebsc-2-s1.binance.org:8545"
       }
     ],
