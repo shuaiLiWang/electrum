@@ -22,7 +22,9 @@ from hexbytes import HexBytes
 from mnemonic import Mnemonic
 from trezorlib.customer_ui import CustomerUI
 
-from electrum import MutiBase, bitcoin, commands, constants, daemon, ecc, keystore, paymentrequest, simple_config, util
+from electrum import MutiBase, bitcoin, commands, constants, daemon, ecc, keystore
+from electrum import mnemonic as electrum_mnemonic
+from electrum import paymentrequest, simple_config, util
 from electrum.address_synchronizer import TX_HEIGHT_FUTURE, TX_HEIGHT_LOCAL
 from electrum.bip32 import BIP32Node
 from electrum.bip32 import convert_bip32_path_to_list_of_uint32 as parse_path
@@ -2786,6 +2788,22 @@ class AndroidCommands(commands.Commands):
                 if -1 == value["type"].find("-hw-"):
                     num += 1
         return num
+
+    def encode_mnemonics(self, seed):
+        """
+        Encoding of mnemonic words
+        :param seed: mnemonics for 12/18/24
+        :return: encoded data as string
+        """
+        return str(electrum_mnemonic.Mnemonic(lang='en').mnemonic_decode(seed))
+
+    def decode_mnemonics(self, decoded_info):
+        """
+        Decode encoded data into mnemonics
+        :param decoded_info: encoded data as string
+        :return: mnemonic for 12/18/24
+        """
+        return electrum_mnemonic.Mnemonic(lang='en').mnemonic_encode(int(decoded_info))
 
     def verify_legality(self, data, flag="", coin="btc", password=None):  # noqa
         """
