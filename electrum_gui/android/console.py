@@ -3735,7 +3735,7 @@ class AndroidCommands(commands.Commands):
             db.put("wallet_type", f"{coin}_standard")
             wallet = Standard_Eth_Wallet(db, storage, config=self.config, index=account_id)
         elif chain_affinity == "btc":
-            ks = keystore.from_bip39_seed(seed, passphrase, util.get_keystore_path(bip39_derivation))
+            ks = keystore.from_bip39_seed(seed, passphrase, bip39_derivation)
             db.put("keystore", ks.dump())
             wallet = Standard_Wallet(db, storage, config=self.config)
         else:
