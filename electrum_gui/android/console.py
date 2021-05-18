@@ -3600,6 +3600,7 @@ class AndroidCommands(commands.Commands):
         self, password=None, seed=None, passphrase="", xpub=None, hw=False, path="bluetooth"
     ):
         eths_xpub = None
+        self.recovery_wallets = {}
 
         def recovery_wallet(self, purpose: int, coin: str = "btc") -> None:
             def recovery_create_subfun(self, coin, account_id, name) -> None:
