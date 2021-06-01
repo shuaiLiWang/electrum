@@ -149,7 +149,7 @@ class Abstract_Eth_Wallet(abc.ABC):
         if self._identity is None:
             prefix = self.coin if self.coin != "eth" else ""
             # crypto.sha256 returns a bytes object
-            self._identity = crypto.sha256(prefix + self.get_addresses()[0]).hex()
+            self._identity = crypto.sha256(prefix + (self.get_addresses()[0]).lower()).hex()
         return self._identity
 
     @property
