@@ -3600,16 +3600,26 @@ class AndroidCommands(commands.Commands):
                 wallet = self.load_wallet(name, password=storage_password)
                 wallet.force_change_storage_password(self.android_id)
 
+    @exceptions.catch_exception
     def update_wallet_password(self, old_password, new_password):
         """
         Update password
         :param old_password: old_password as string
         :param new_password: new_password as string
         :return:None
+
+        exp:
+            success:
+                {"status":0, "info": null}
+            failed:
+                {"status":1, "err_msg_key": "msg_incorrect_password"}
         """
-        self._assert_daemon_running()
-        for _name, wallet in self.daemon._wallets.items():
-            wallet.update_password(old_pw=old_password, new_pw=new_password, str_pw=self.android_id)
+        try:
+            self._assert_daemon_running()
+            for _name, wallet in self.daemon._wallets.items():
+                wallet.update_password(old_pw=old_password, new_pw=new_password, str_pw=self.android_id)
+        except InvalidPassword:
+            raise exceptions.InvalidPassword()
 
     def check_password(self, password):
         """
