@@ -37,7 +37,7 @@ import time
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import eth_account
-from eth_account._utils import transactions as eth_account_transactions
+from eth_account.internal import transactions as eth_account_transactions
 import eth_keys
 import eth_utils
 import hexbytes

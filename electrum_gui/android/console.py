@@ -195,8 +195,8 @@ class AndroidCommands(commands.Commands):
         else:
             self.user_dir = user_dir
         fd = daemon.get_file_descriptor(self.config)
-        if not fd:
-            raise BaseException(("Daemon already running, Don't start the wallet repeatedly"))
+        # if not fd:
+        # raise BaseException(("Daemon already running, Don't start the wallet repeatedly"))
         set_language(self.config.get("language", "zh_CN"))
 
         # Initialize here rather than in start() so the DaemonModel has a chance to register
