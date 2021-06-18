@@ -4572,9 +4572,10 @@ class AndroidCommands(commands.Commands):
             raise UnsupportedCurrencyCoin()
         return json.dumps(info, cls=json_encoders.DecimalEncoder)
 
-    def get_wallet_balance(self):
+    def get_wallet_balance(self, id=None):
         """
         Get the current balance of your wallet
+        :param id: wallet id
         :return: json like
         {
           "all_balance": "",
@@ -4587,12 +4588,16 @@ class AndroidCommands(commands.Commands):
           ]
         }
         """
-        self._assert_wallet_isvalid()
-        coin = self.wallet.coin
-        info = {"name": self.wallet.identity, "label": self.wallet.get_name(), "coin": coin}
+        if id is not None:
+            wallet = self.get_wallet_by_name(id)
+        else:
+            self._assert_wallet_isvalid()
+            wallet = self.wallet
+        coin = wallet.coin
+        info = {"name": wallet.identity, "label": wallet.get_name(), "coin": coin}
         chain_affinity = _get_chain_affinity(coin)
         if is_coin_migrated(coin):
-            main_balance_info, contracts_balance_info, sum_fiat = self._get_general_wallet_all_balance(self.wallet)
+            main_balance_info, contracts_balance_info, sum_fiat = self._get_general_wallet_all_balance(wallet)
             info.update(
                 {
                     "all_balance": f"{self.daemon.fx.ccy_amount_str(sum_fiat, True)} {self.ccy}",
@@ -4603,7 +4608,7 @@ class AndroidCommands(commands.Commands):
                 }
             )
         elif chain_affinity == "eth":
-            main_balance_info, contracts_balance_info, sum_fiat = self._get_eth_wallet_all_balance(self.wallet)
+            main_balance_info, contracts_balance_info, sum_fiat = self._get_eth_wallet_all_balance(wallet)
             info.update(
                 {
                     "all_balance": f"{self.daemon.fx.ccy_amount_str(sum_fiat, True)} {self.ccy}",
@@ -4614,7 +4619,7 @@ class AndroidCommands(commands.Commands):
                 }
             )
         elif chain_affinity == "btc":
-            c, u, x = self.wallet.get_balance()
+            c, u, x = wallet.get_balance()
             balance = c + u
             fiat = Decimal(balance) / COIN * price_manager.get_last_price(coin, self.ccy)
             fiat_str = f"{self.daemon.fx.ccy_amount_str(fiat, True)} {self.ccy}"
@@ -4624,7 +4629,7 @@ class AndroidCommands(commands.Commands):
                     "wallets": [
                         {
                             "coin": "btc",
-                            "address": self.wallet.get_addresses()[0],
+                            "address": wallet.get_addresses()[0],
                             "balance": self.format_amount(balance),
                             "icon": self._get_icon_by_token(coin),
                             "fiat": fiat_str,
@@ -4633,8 +4638,8 @@ class AndroidCommands(commands.Commands):
                     "coin_asset": self.format_amount(balance),
                 }
             )
-            if self.label_flag and self.wallet.wallet_type != "standard":
-                self.label_plugin.load_wallet(self.wallet)
+            if self.label_flag and wallet.wallet_type != "standard":
+                self.label_plugin.load_wallet(wallet)
         else:
             raise UnsupportedCurrencyCoin()
         return json.dumps(info, cls=json_encoders.DecimalEncoder)
