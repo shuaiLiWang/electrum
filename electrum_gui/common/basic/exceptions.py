@@ -2,6 +2,7 @@ import functools
 import json
 from enum import IntEnum, unique
 
+from electrum import util
 from electrum.util import DecimalEncoder
 
 
@@ -77,6 +78,8 @@ def catch_exception(force_api_version: int = None):
                     out = {"status": ResultStatus.SUCCESS, "info": result}
                 except OneKeyException as e:
                     out = {"status": e.status, "err_msg_key": e.key}
+                except util.InvalidPassword:
+                    out = {"status": InvalidPassword.status, "err_msg_key": InvalidPassword.key}
                 except Exception as e:
                     out = {
                         "status": OneKeyException.status,

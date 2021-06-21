@@ -3668,6 +3668,7 @@ class AndroidCommands(commands.Commands):
                 wallet = self.load_wallet(name, password=storage_password)
                 wallet.force_change_storage_password(self.android_id)
 
+    @exceptions.catch_exception
     def update_wallet_password(self, old_password, new_password):
         """
         Update password
