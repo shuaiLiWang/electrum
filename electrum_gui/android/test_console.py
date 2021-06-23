@@ -31,13 +31,234 @@ class Test_bitcoin_testnet(unittest.TestCase):
         self.testcommond.reset_wallet_info()
 
     # def tearDown(self):
-    #
-    #     time.sleep(1)
-    #     # self.testcommond.reset_wallet_info()
+    #     self.testcommond.reset_wallet_info()
 
     @classmethod
     def tearDownClass(cls):
         cls.testcommond.stop()
+
+    def test_send_use_default_wallet(self):
+        wallet_id_info = [
+            {
+                "coin": "btc",
+                "id": "aa6cdf2eafd3288379fcf61a1498f97cd5af3f2384733148d9c35df3fa293799",
+                "purpose": 84,
+                "mnemonic": "crash frost drive trigger render dizzy vacuum cement enact minute curve blanket",
+            },
+            {
+                "coin": "eth",
+                "id": "c724346117d4fd5199047514e79ab403e127964f5e1165fceeaaa26a9a53288f",
+                "purpose": 44,
+                "mnemonic": "crash frost drive trigger render dizzy vacuum cement enact minute curve blanket",
+            },
+        ]
+        for wallet in wallet_id_info:
+
+            self.testcommond.create(
+                "test1", self.password, seed=wallet["mnemonic"], purpose=wallet["purpose"], coin=wallet["coin"]
+            )
+
+            self.testcommond.switch_wallet(wallet["id"])
+            self.testcommond.get_wallet_address_show_UI()
+            if wallet["coin"] == "btc":
+                all_output = []
+                output_info = {"bc1q7dpa2qu5eq26sg7pc6zl8u89ghv74mq05yg6eg": '0.0001'}
+                all_output.append(output_info)
+                output_str = json.dumps(all_output)
+                ret_str = self.testcommond.get_fee_by_feerate(outputs=output_str, feerate=10)
+                ret_list = json.loads(ret_str)
+                self.testcommond.get_tx_info_from_raw(ret_list['tx'])
+                self.testcommond.sign_tx(ret_list['tx'], password=self.password)
+                self.testcommond.get_all_tx_list(None)
+
+                self.testcommond.get_tx_info("fe175b613767a2d9c279ba5eb896bfb9b1958e3bd8b1c2fb1eaf6a6fec65ba77")
+                self.testcommond.get_detail_tx_info_by_hash(
+                    "fe175b613767a2d9c279ba5eb896bfb9b1958e3bd8b1c2fb1eaf6a6fec65ba77"
+                )
+                # sign = json.loads(sign_tx)
+                # self.testcommond.broadcast_tx(sign)
+            else:
+                self.testcommond.get_all_tx_list(None, coin="eth")
+                self.testcommond.get_tx_info(
+                    "0xdb147f32077916e1d3c5de15d4834399697f0585185a8b3dfdc0a73e4112d853", coin="eth"
+                )
+                self.testcommond.sign_eth_tx(
+                    "0x9077b1164baeEDb35FE221171ef279E17053f259",
+                    0.001,
+                    password=self.password,
+                    gas_price=10,
+                    auto_send_tx=False,
+                )
+            now_wallet = self.testcommond.get_wallet_by_name(wallet["id"])
+            now_wallet.stop()
+
+    def test_send_use_id(self):
+        wallet_id_info = [
+            {
+                "coin": "btc",
+                "id": "aa6cdf2eafd3288379fcf61a1498f97cd5af3f2384733148d9c35df3fa293799",
+                "purpose": 84,
+                "mnemonic": "crash frost drive trigger render dizzy vacuum cement enact minute curve blanket",
+            },
+            {
+                "coin": "btc",
+                "id": "58cc14b20a7e31a8d8cd70109e589c7622c83c782a0976495910245f5a904dbf",
+                "purpose": 44,
+                "mnemonic": "crash frost drive trigger render dizzy vacuum cement enact minute curve blanket",
+            },
+            {
+                "coin": "btc",
+                "id": "466334fef9ea4b7c4e3e953a431341eac0eadff4c547ba8e35205df0aa1fb7b4",
+                "purpose": 49,
+                "mnemonic": "crash frost drive trigger render dizzy vacuum cement enact minute curve blanket",
+            },
+            {
+                "coin": "eth",
+                "id": "c724346117d4fd5199047514e79ab403e127964f5e1165fceeaaa26a9a53288f",
+                "purpose": 44,
+                "mnemonic": "crash frost drive trigger render dizzy vacuum cement enact minute curve blanket",
+            },
+            {
+                "coin": "eth",
+                "id": "0eda42ba5f0db9a184be55df137e940280e3fc71737f84ed882c49fd5b144fc7",
+                "purpose": 44,
+                "mnemonic": "crash frost drive trigger render dizzy vacuum cement enact minute curve blanket",
+            },
+        ]
+        for wallet in wallet_id_info:
+            self.testcommond.create(
+                "test1", self.password, seed=wallet["mnemonic"], purpose=wallet["purpose"], coin=wallet["coin"]
+            )
+
+        self.testcommond.switch_wallet("58cc14b20a7e31a8d8cd70109e589c7622c83c782a0976495910245f5a904dbf")
+        all_output = []
+        output_info = {"bc1q7dpa2qu5eq26sg7pc6zl8u89ghv74mq05yg6eg": '0.00001'}
+        all_output.append(output_info)
+        output_str = json.dumps(all_output)
+        ret_str = self.testcommond.get_fee_by_feerate(
+            outputs=output_str, feerate=10, id="aa6cdf2eafd3288379fcf61a1498f97cd5af3f2384733148d9c35df3fa293799"
+        )
+        ret_list = json.loads(ret_str)
+        self.testcommond.get_tx_info_from_raw(ret_list['tx'])
+        self.testcommond.sign_tx(
+            ret_list['tx'],
+            password=self.password,
+            id="aa6cdf2eafd3288379fcf61a1498f97cd5af3f2384733148d9c35df3fa293799",
+        )
+        self.testcommond.get_all_tx_list(
+            coin="eth", id="c724346117d4fd5199047514e79ab403e127964f5e1165fceeaaa26a9a53288f"
+        )
+        self.testcommond.get_tx_info(
+            "0xdb147f32077916e1d3c5de15d4834399697f0585185a8b3dfdc0a73e4112d853",
+            coin="eth",
+            id="c724346117d4fd5199047514e79ab403e127964f5e1165fceeaaa26a9a53288f",
+        )
+        self.testcommond.get_detail_tx_info_by_hash(
+            "fe175b613767a2d9c279ba5eb896bfb9b1958e3bd8b1c2fb1eaf6a6fec65ba77",
+            id="aa6cdf2eafd3288379fcf61a1498f97cd5af3f2384733148d9c35df3fa293799",
+        )
+        # sign = json.loads(sign_tx)
+        # self.testcommond.broadcast_tx(sign)
+        now_wallet = self.testcommond.get_wallet_by_name(
+            "58cc14b20a7e31a8d8cd70109e589c7622c83c782a0976495910245f5a904dbf"
+        )
+        now_wallet.stop()
+
+        self.testcommond.switch_wallet("0eda42ba5f0db9a184be55df137e940280e3fc71737f84ed882c49fd5b144fc7")
+        self.testcommond.get_all_tx_list(
+            coin="btc", id="aa6cdf2eafd3288379fcf61a1498f97cd5af3f2384733148d9c35df3fa293799"
+        )
+        self.testcommond.get_tx_info(
+            "fe175b613767a2d9c279ba5eb896bfb9b1958e3bd8b1c2fb1eaf6a6fec65ba77",
+            coin="btc",
+            id="aa6cdf2eafd3288379fcf61a1498f97cd5af3f2384733148d9c35df3fa293799",
+        )
+        self.testcommond.sign_eth_tx(
+            "0x9077b1164baeEDb35FE221171ef279E17053f259",
+            0.001,
+            password=self.password,
+            gas_price=10,
+            auto_send_tx=False,
+            id="c724346117d4fd5199047514e79ab403e127964f5e1165fceeaaa26a9a53288f",
+        )
+        now_wallet = self.testcommond.get_wallet_by_name(
+            "0eda42ba5f0db9a184be55df137e940280e3fc71737f84ed882c49fd5b144fc7"
+        )
+        now_wallet.stop()
+
+    def test_get_default_fee_info(self):
+        wallet_id_info = [
+            {"coin": "btc", "id": "898e3d5e0fc230a39c10ab5cb5d4ce913499ad9499269ac31ae7daa37cf359f2", "purpose": 44},
+            {"coin": "eth", "id": "c77fd0012ca5136614c2cf4c55a3ebdf06ec26115a9282be2dda0be756d59e87", "purpose": 44},
+        ]
+
+        for wallet in wallet_id_info:
+            wallet_info = json.loads(
+                self.testcommond.create(
+                    "test1", self.password, seed=self.mnemonic, purpose=wallet["purpose"], coin=wallet["coin"]
+                )
+            )
+            self.assertEqual(wallet_info["wallet_info"][0]["name"], wallet["id"])
+
+        self.testcommond.switch_wallet("898e3d5e0fc230a39c10ab5cb5d4ce913499ad9499269ac31ae7daa37cf359f2")
+        self.testcommond.get_default_fee_info()
+        self.testcommond.get_default_fee_info(
+            coin="eth", id="c77fd0012ca5136614c2cf4c55a3ebdf06ec26115a9282be2dda0be756d59e87"
+        )
+        self.testcommond.get_default_fee_info(feerate=65)
+        now_wallet = self.testcommond.get_wallet_by_name(
+            "898e3d5e0fc230a39c10ab5cb5d4ce913499ad9499269ac31ae7daa37cf359f2"
+        )
+        now_wallet.stop()
+
+        self.testcommond.switch_wallet("c77fd0012ca5136614c2cf4c55a3ebdf06ec26115a9282be2dda0be756d59e87")
+        self.testcommond.get_default_fee_info(coin="eth")
+        self.testcommond.get_default_fee_info(
+            coin="btc", id="898e3d5e0fc230a39c10ab5cb5d4ce913499ad9499269ac31ae7daa37cf359f2"
+        )
+        self.testcommond.get_default_fee_info(coin="btc", feerate=65)
+        now_wallet = self.testcommond.get_wallet_by_name(
+            "c77fd0012ca5136614c2cf4c55a3ebdf06ec26115a9282be2dda0be756d59e87"
+        )
+        now_wallet.stop()
+
+    def test_get_all_tx_list(self):
+        wallet_id_info = [
+            {"coin": "btc", "id": "898e3d5e0fc230a39c10ab5cb5d4ce913499ad9499269ac31ae7daa37cf359f2", "purpose": 44},
+            {"coin": "eth", "id": "c77fd0012ca5136614c2cf4c55a3ebdf06ec26115a9282be2dda0be756d59e87", "purpose": 44},
+        ]
+
+        for wallet in wallet_id_info:
+            wallet_info = json.loads(
+                self.testcommond.create(
+                    "test1", self.password, seed=self.mnemonic, purpose=wallet["purpose"], coin=wallet["coin"]
+                )
+            )
+            self.assertEqual(wallet_info["wallet_info"][0]["name"], wallet["id"])
+
+        self.testcommond.switch_wallet("898e3d5e0fc230a39c10ab5cb5d4ce913499ad9499269ac31ae7daa37cf359f2")
+        self.testcommond.get_all_tx_list()
+        self.testcommond.get_all_tx_list(
+            coin="eth", id="c77fd0012ca5136614c2cf4c55a3ebdf06ec26115a9282be2dda0be756d59e87"
+        )
+        now_wallet = self.testcommond.get_wallet_by_name(wallet["id"])
+        now_wallet.stop()
+
+    def test_get_erc20_approve_action_field_data(self):
+        wallet_info = json.loads(self.testcommond.create("test1", self.password, seed=self.mnemonic, coin="eth"))
+        id = wallet_info["wallet_info"][0]["name"]
+        self.testcommond.switch_wallet(id)
+        max_return = json.loads(
+            self.testcommond.get_erc20_approve_action_field_data(
+                "0x514910771af9ca656af840dff83e8264ecf986ca",
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            )
+        )
+        self.assertEqual(max_return["status"], 0)
+        normal_return = json.loads(
+            self.testcommond.get_erc20_approve_action_field_data("0x514910771af9ca656af840dff83e8264ecf986ca", "10000")
+        )
+        self.assertEqual(normal_return["status"], 0)
 
     def test_recovery_hd_wallet_by_seed_and_derived_2_wallet_per_chain(self):
         wallet_list = []
