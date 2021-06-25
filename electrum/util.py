@@ -131,8 +131,7 @@ class ReplaceWatchonlyWallet(Exception):
 
 class DustTransaction(exceptions.DustTransaction):
     def __str__(self):
-        return (_("Dust transaction"))
-
+        return _("Dust transaction")
 
 class InvalidPassword(exceptions.InvalidPassword):
     def __str__(self):
