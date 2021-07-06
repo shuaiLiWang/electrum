@@ -111,6 +111,7 @@ class TrezorManager(object):
 
     # === Begin helper methods used in console.AndroidCommands ===
 
+    @api.api_entry()
     def ensure_client(self, path: str) -> None:
         self._get_client(path)
 
@@ -241,6 +242,7 @@ class TrezorManager(object):
         resp = self._bridge(path, 'apply_settings', **kwargs)
         return 1 if resp == "Settings applied" else 0
 
+    @api.api_entry()
     def init(
         self,
         path: str = "android_usb",
@@ -264,6 +266,7 @@ class TrezorManager(object):
         response = self._bridge(path, 'reset_device', language=language, label=label, strength=strength)
         return 1 if response == "Device successfully initialized" else 0
 
+    @api.api_entry()
     def reset_pin(self, path: str = "android_usb") -> int:
         """
         Reset pin, used by hardware
@@ -282,6 +285,7 @@ class TrezorManager(object):
 
         return 1
 
+    @api.api_entry()
     def wipe_device(self, path: str = "android_usb") -> int:
         """
         Reset device, used by hardware
@@ -304,6 +308,7 @@ class TrezorManager(object):
         client = self._get_client(path=path)
         return client.features.passphrase_protection
 
+    @api.api_entry()
     def get_feature(self, path: str = "android_usb") -> str:
         """
         Get hardware information, used by hardware

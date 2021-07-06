@@ -16,7 +16,6 @@ class Version(enum.IntEnum):
 class ResultStatus(enum.IntEnum):
     SUCCESS = 0
     FAILED = 1
-    APP_USED = 2
 
 
 def api_entry(force_version: int = None):
@@ -36,17 +35,20 @@ def api_entry(force_version: int = None):
             if api_version == Version.V1:
                 return func(*args, **kwargs)
             elif api_version == Version.V2:
+                out = {"other_info": ""}
                 try:
                     result = func(*args, **kwargs)
-                    out = {"status": ResultStatus.SUCCESS, "info": result}
+                    out.update({"status": ResultStatus.SUCCESS, "info": result})
                 except exceptions.OneKeyException as e:
-                    out = {"status": ResultStatus.FAILED, "err_msg_key": e.key}
+                    out.update({"status": ResultStatus.FAILED, "err_msg_key": e.key, "other_info": e.other_info})
                 except Exception as e:
-                    out = {
-                        "status": ResultStatus.FAILED,
-                        "err_msg_key": exceptions.OneKeyException.key,
-                        "low_level_error": _filter_params(e),
-                    }
+                    out.update(
+                        {
+                            "status": ResultStatus.FAILED,
+                            "err_msg_key": exceptions.OneKeyException.key,
+                            "low_level_error": _filter_params(e),
+                        }
+                    )
                 out.update({"api_version": api_version})
                 return json.dumps(out, cls=json_encoders.DecimalEncoder)
             else:
@@ -56,6 +58,7 @@ def api_entry(force_version: int = None):
                         "err_msg_key": "msg_unknown_error",
                         "low_level_error": "unsupported api version",
                         "api_version": api_version,
+                        "other_info": "",
                     }
                 )
 
